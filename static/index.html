@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jev Playground</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --line:#2a2f3c;
+    --fg:#e8eaf0; --dim:#9aa3b5; --accent:#4f8cff; --ok:#3ecf8e; --warn:#f0b429; --err:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.6 "Segoe UI",system-ui,-apple-system,"Microsoft YaHei",sans-serif}
+  header{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+  header h1{font-size:17px;margin:0}
+  header h1 small{color:var(--dim);font-weight:400;margin-left:8px}
+  .spacer{flex:1}
+  input,textarea,select{background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:6px 9px;font:inherit}
+  input:focus,textarea:focus,select:focus{outline:1px solid var(--accent)}
+  textarea{width:100%;resize:vertical}
+  .keywrap{display:flex;align-items:center;gap:6px}
+  #keydot{width:9px;height:9px;border-radius:50%;background:var(--err);flex:none}
+  #keydot.on{background:var(--ok)}
+  #key{width:230px}
+  main{display:grid;grid-template-columns:minmax(430px,1fr) minmax(420px,1fr);gap:16px;padding:16px 20px;max-width:1500px;margin:0 auto}
+  @media(max-width:980px){main{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+  .card h3{margin:0 0 10px;font-size:13px;color:var(--dim);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+  .frow{margin-bottom:10px}
+  .frow label{display:block;font-size:12px;color:var(--dim);margin-bottom:4px}
+  .frow textarea{min-height:64px;font-family:Consolas,monospace;font-size:13px}
+  .qcard{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px;background:var(--panel2)}
+  .qhead{display:flex;gap:6px;margin-bottom:8px;align-items:center}
+  .qhead select{width:96px}
+  .qhead input{flex:1;min-width:60px;font-family:Consolas,monospace;font-size:13px}
+  .badge{font-size:11px;padding:2px 7px;border-radius:10px;background:#2b3550;color:#9fc0ff;flex:none}
+  .badge.frozen{background:#24402f;color:#7fe0ae}
+  .optrow{display:flex;gap:6px;margin-bottom:5px}
+  .optrow input.key{width:70px;font-family:Consolas,monospace}
+  .optrow input.desc{flex:1}
+  .xbtn{background:none;border:none;color:var(--dim);cursor:pointer;font-size:15px;padding:0 6px}
+  .xbtn:hover{color:var(--err)}
+  .addbtn,.ghost{background:none;border:1px dashed var(--line);color:var(--dim);border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit;font-size:12px}
+  .addbtn:hover,.ghost:hover{color:var(--accent);border-color:var(--accent)}
+  #send{width:100%;padding:11px;font-size:15px;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer}
+  #send:disabled{opacity:.45;cursor:wait}
+  #errbox{display:none;background:#3a1d1d;border:1px solid #6b2f2f;color:#ffb4b4;border-radius:8px;padding:10px 12px;margin-bottom:12px;white-space:pre-wrap}
+  .rescard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+  .meta{display:flex;gap:14px;flex-wrap:wrap;color:var(--dim);font-size:12px;margin-bottom:10px}
+  .ans{font-size:24px;font-weight:700;margin:2px 0 10px}
+  .ans small{font-size:13px;color:var(--dim);font-weight:400}
+  .pbar{display:grid;grid-template-columns:150px 1fr 52px;gap:8px;align-items:center;margin-bottom:4px;font-size:12.5px}
+  .pbar .track{background:#10131a;border-radius:5px;height:16px;overflow:hidden}
+  .pbar .fill{height:100%;background:linear-gradient(90deg,#3358c9,#4f8cff);border-radius:5px;transition:width .5s}
+  .pbar.top .fill{background:linear-gradient(90deg,#1f8a5f,#3ecf8e)}
+  .pbar .pct{text-align:right;font-family:Consolas,monospace;color:var(--dim)}
+  .noulbar{position:relative;background:#10131a;border-radius:6px;height:22px;margin:8px 0 4px}
+  .noulbar .fill{height:100%;border-radius:6px 0 0 6px;background:linear-gradient(90deg,#7a4f1f,#f0b429)}
+  .noulbar .half{position:absolute;left:50%;top:-4px;bottom:-4px;border-left:1px dashed #666}
+  .noulbar .knob{position:absolute;top:-5px;width:4px;height:32px;background:#fff;border-radius:2px;transform:translateX(-2px)}
+  .scale{position:relative;height:38px;margin:6px 0 2px}
+  .scale .rail{position:absolute;top:16px;left:0;right:0;height:6px;background:#10131a;border-radius:3px}
+  .scale .knob{position:absolute;top:8px;width:4px;height:22px;background:#fff;border-radius:2px;transform:translateX(-2px)}
+  .scale .lv{position:absolute;top:26px;transform:translateX(-50%);font-size:11px;color:var(--dim)}
+  .conf{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12.5px;margin-top:8px}
+  .conf .track{width:130px;height:8px;background:#10131a;border-radius:4px;overflow:hidden}
+  .conf .fill{height:100%;background:#886adf}
+  details pre{background:#10131a;border-radius:8px;padding:10px;overflow:auto;font-size:12px;color:#b7c0d4}
+  .hint{color:var(--dim);font-size:12px}
+  .placeholder{color:var(--dim);text-align:center;padding:50px 10px;border:1px dashed var(--line);border-radius:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Jev Playground <small>自输入题目 · 实时调 System One</small></h1>
+  <div class="spacer"></div>
+  <label class="hint">模型</label>
+  <input id="model" value="jev-latest" style="width:120px;font-family:Consolas,monospace">
+  <div class="keywrap">
+    <span id="keydot" title="API key 状态"></span>
+    <input id="key" type="password" placeholder="TYPESAFE_API_KEY（存本浏览器）" style="width:230px">
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <h3>题目模板</h3>
+      <select id="tpl" style="width:100%"></select>
+      <div class="hint" id="tplnote" style="margin-top:6px"></div>
+    </div>
+    <div class="card">
+      <h3>State（题目内容）</h3>
+      <div id="statefields"></div>
+    </div>
+    <div class="card">
+      <h3>Questions <button class="addbtn" id="addq">＋ 添加问题</button></h3>
+      <div class="hint" style="margin:0 0 8px">同一请求内的问题并行独立求值（fan-out，只按一次请求计费）。</div>
+      <div id="questions"></div>
+    </div>
+    <div id="errbox"></div>
+    <button id="send">发送请求（Ctrl+Enter）</button>
+    <div class="hint" style="margin-top:8px">计价：输入 $0.042/MTok，输出免费。一次典型请求 ≈ $0.0001。</div>
+  </section>
+
+  <section>
+    <div id="results">
+      <div class="placeholder">结果会出现在这里。<br><br>左侧选一个模板（带 <span style="color:#7fe0ae">论文冻结模板</span> 标记的与 arXiv 2609.37647 评测用的提问原文完全一致），填入内容后发送。</div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+// ---------- 模板（frozen=true 的 question 文本逐字取自 jev-benchmarking harness，即论文冻结模板） ----------
+const T = {
+  custom: {name:"自定义（自由编辑）", frozen:false, note:"state 用 JSON 编辑；可添加任意多个 choice/noul/score 问题。",
+    jsonState:{text:"在这里写你的内容"},
+    questions:[{id:"answer",type:"choice",instructions:"用一句话提出关于 `text` 的判断题，选项在下面。",options:{A:"选项 A 的含义",B:"选项 B 的含义"}}]},
+
+  sentiment: {name:"情感二分类 · IMDB/SST-2（论文模板）", frozen:true, note:"n=25,000 时论文复算 accuracy 0.965。",
+    fields:[{key:"review",label:"review（影评正文）",ph:"Write your review here... (英文影评效果最佳)"}],
+    questions:[{id:"answer",type:"choice",instructions:"What is the overall sentiment of `review` toward the movie?",
+      options:{negative:"The text expresses a negative opinion.",positive:"The text expresses a positive opinion."}}]},
+
+  agnews: {name:"新闻四分类 · AG News（论文模板）", frozen:true, note:"论文 accuracy 0.885。",
+    fields:[{key:"article",label:"article（新闻正文）",ph:"Paste a news article..."}],
+    questions:[{id:"answer",type:"choice",instructions:"What is the topic of the news `article`?",
+      options:{World:"International news, politics, conflicts and world affairs.",Sports:"Sports events, teams and athletes.",Business:"Companies, markets, the economy, finance.","Sci/Tech":"Science, technology, computing, the internet and space."}}]},
+
+  nli: {name:"自然语言推理 · ANLI（论文模板）", frozen:true, note:"论文 accuracy 0.739（R1 81.4% → R3 67.7%）。",
+    fields:[{key:"premise",label:"premise（前提）",ph:"A man is playing a guitar on stage."},{key:"hypothesis",label:"hypothesis（假设）",ph:"The man is asleep."}],
+    questions:[{id:"answer",type:"choice",instructions:"What is the relationship between `premise` and `hypothesis`?",
+      options:{entailment:"`hypothesis` is definitely true given `premise`.",neutral:"`hypothesis` may or may not be true; `premise` does not settle it.",contradiction:"`hypothesis` is definitely false given `premise`."}}]},
+
+  mmlu: {name:"四选一知识题 · MMLU（论文模板）", frozen:true, note:"论文 accuracy 0.918；计算类科目 0.943（论文疑训练暴露，见探针）。",
+    fields:[{key:"subject",label:"subject（科目）",ph:"high school mathematics"},{key:"question",label:"question（题干）",ph:"What is 2 + 2 * 3 ?"},{key:"A",label:"选项 A",ph:"6"},{key:"B",label:"选项 B",ph:"8"},{key:"C",label:"选项 C",ph:"12"},{key:"D",label:"选项 D",ph:"10"}],
+    questions:[{id:"answer",type:"choice",instructions:"Which option correctly answers `question`?",
+      options:{A:"（A）",B:"（B）",C:"（C）",D:"（D）"}}],
+    patch:(st,q)=>{q.answer.options={A:st.A||"(A)",B:st.B||"(B)",C:st.C||"(C)",D:st.D||"(D)"};
+      ["A","B","C","D"].forEach(k=>delete st[k]);}},
+
+  spam: {name:"垃圾短信 · SMS Spam（论文模板）", frozen:true, note:"论文 F1 0.938。Noul 只有一个 0-1 概率，无单独置信度。",
+    fields:[{key:"message",label:"message（短信原文）",ph:"Congratulations! You've won a $1000 gift card. Call now!"}],
+    questions:[{id:"answer",type:"noul",instructions:"Is the SMS `message` spam, such as unsolicited advertising, prize scams or promotional bulk messaging?"}]},
+
+  grounding: {name:"接地检查 · LLM-AggreFact（论文模板）", frozen:true, note:"RAG 场景：claim 是否被 document 支持。论文 balanced accuracy 0.786。",
+    fields:[{key:"document",label:"document（检索到的文档）",ph:"The Eiffel Tower is located in Paris, France."},{key:"claim",label:"claim（要核查的陈述）",ph:"The Eiffel Tower is in Berlin."}],
+    questions:[{id:"answer",type:"noul",instructions:"Is every part of `claim` supported by `document`?",
+      criteria:{true:"Everything the claim states is supported by the document.",false:"Some part of the claim is unsupported by, or contradicts, the document."}}]},
+
+  stsb: {name:"语义相似度 · STS-B（论文模板）", frozen:true, note:"Score 原语：6 级 rubric，返回概率加权分。论文 Spearman 0.890。",
+    fields:[{key:"sentence_1",label:"sentence_1",ph:"A girl is styling her hair."},{key:"sentence_2",label:"sentence_2",ph:"A girl is brushing her hair."}],
+    questions:[{id:"answer",type:"score",instructions:"How similar in meaning are `sentence_1` and `sentence_2`?",
+      levels:["The two sentences are completely dissimilar.","The two sentences are not equivalent, but are on the same topic.","The two sentences are not equivalent, but share some details.","The two sentences are roughly equivalent, but some important information differs or is missing.","The two sentences are mostly equivalent, but some unimportant details differ.","The two sentences are completely equivalent, as they mean the same thing."]}]},
+
+  langid: {name:"语言识别 · Language ID（论文模板）", frozen:true, note:"20 选 1。论文 accuracy 0.996。试试中文！",
+    fields:[{key:"text",label:"text",ph:"今天天气真不错，我们一起去公园散步吧。"}],
+    questions:[{id:"answer",type:"choice",instructions:"In which language is `text` written?",
+      options:{ar:"Arabic",bg:"Bulgarian",de:"German",el:"Greek",en:"English",es:"Spanish",fr:"French",hi:"Hindi",it:"Italian",ja:"Japanese",nl:"Dutch",pl:"Polish",pt:"Portuguese",ru:"Russian",sw:"Swahili",th:"Thai",tr:"Turkish",ur:"Urdu",vi:"Vietnamese",zh:"Chinese"}}]},
+
+  goemotions: {name:"多标签情绪 · GoEmotions 风格（fan-out 演示）", frozen:false, note:"一个 state × 7 个并行 Noul（论文用全部 28 情绪，这里取子集演示）。论文发现：多标签 Noul 会过报 yes，阈值需上调。",
+    fields:[{key:"comment",label:"comment（评论）",ph:"I can't believe they cancelled the show AGAIN. So angry!!"}],
+    questions:[
+      {id:"sadness",type:"noul",instructions:"Does the author of `comment` express sadness?"},
+      {id:"joy",type:"noul",instructions:"Does the author of `comment` express joy?"},
+      {id:"love",type:"noul",instructions:"Does the author of `comment` express love?"},
+      {id:"anger",type:"noul",instructions:"Does the author of `comment` express anger?"},
+      {id:"fear",type:"noul",instructions:"Does the author of `comment` express fear?"},
+      {id:"surprise",type:"noul",instructions:"Does the author of `comment` express surprise?"},
+      {id:"neutral",type:"noul",instructions:"Is `comment` emotionally neutral, expressing no particular emotion?"}]},
+};
+
+// ---------- 工具 ----------
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let nextLetter=n=>{const L="ABCDEFGHIJKLMNOPQRSTUVWXYZ";return n<26?L[n]:String.fromCharCode(65+Math.floor(n/26)-1)+String.fromCharCode(65+n%26)};
+let CUR=null; // 当前编辑态（不直接读 DOM，收集时再读）
+
+// ---------- key ----------
+const keyEl=$("#key");
+keyEl.value=localStorage.getItem("jev_key")||"";
+keyEl.addEventListener("change",()=>localStorage.setItem("jev_key",keyEl.value.trim()));
+fetch("/api/health").then(r=>r.json()).then(h=>{
+  if(h.key_env){$("#keydot").classList.add("on");$("#keydot").title="环境变量 TYPESAFE_API_KEY 已设置（页面输入可覆盖）";keyEl.placeholder="（环境变量已设置，可留空）";}
+  else $("#keydot").title="未检测到环境变量 key，请在此输入";
+}).catch(()=>{});
+
+// ---------- 模板渲染 ----------
+const tplSel=$("#tpl");
+Object.entries(T).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.name;tplSel.appendChild(o);});
+tplSel.addEventListener("change",()=>loadTemplate(tplSel.value));
+
+function loadTemplate(k){
+  const t=T[k];CUR={key:k,t};
+  $("#tplnote").innerHTML=t.frozen?'<span class="badge frozen">论文冻结模板</span> '+esc(t.note):esc(t.note);
+  // state 字段
+  const sf=$("#statefields");sf.innerHTML="";
+  if(t.fields){
+    t.fields.forEach(f=>{
+      const d=document.createElement("div");d.className="frow";
+      d.innerHTML=`<label>${esc(f.label)}</label><textarea data-sk="${esc(f.key)}" placeholder="${esc(f.ph||"")}"></textarea>`;
+      sf.appendChild(d);
+    });
+  }else{
+    const d=document.createElement("div");d.className="frow";
+    d.innerHTML=`<label>state（JSON，可引用字段名用反引号）</label><textarea id="statejson" style="min-height:110px">${esc(JSON.stringify(t.jsonState,null,2))}</textarea>`;
+    sf.appendChild(d);
+  }
+  // 问题
+  const qc=$("#questions");qc.innerHTML="";
+  t.questions.forEach(q=>qc.appendChild(qcard(q)));
+}
+function qcard(q){
+  const d=document.createElement("div");d.className="qcard";
+  const crit=q.type==="choice"
+    ? `<div class="optrows">${Object.entries(q.options||{}).map(([k,v])=>optrow(k,v)).join("")}</div><button class="addbtn addopt">＋ 选项</button>`
+    : q.type==="score"
+    ? `<div class="frow"><label>等级（每行一级，2-10 级，描述具体情境）</label><textarea class="lv">${esc((q.levels||[]).join("\n"))}</textarea></div>`
+    : (q.criteria&&q.criteria.true)
+    ? `<div class="frow"><label>true 判据（可选）</label><input class="crt" data-w="true" value="${esc(q.criteria.true)}" style="width:100%"></div>
+       <div class="frow"><label>false 判据（可选）</label><input class="crt" data-w="false" value="${esc(q.criteria.false||"")}" style="width:100%"></div>`
+    : `<div class="hint">Noul 无需选项；可选填 true/false 判据。<div class="frow" style="margin-top:6px"><input class="crt" data-w="true" placeholder="true 判据（可选）" style="width:100%"></div><div class="frow"><input class="crt" data-w="false" placeholder="false 判据（可选）" style="width:100%"></div></div>`;
+  d.innerHTML=`
+    <div class="qhead">
+      <select class="qtype"><option value="choice"${q.type==="choice"?" selected":""}>Choice</option><option value="noul"${q.type==="noul"?" selected":""}>Noul</option><option value="score"${q.type==="score"?" selected":""}>Score</option></select>
+      <input class="qid" value="${esc(q.id)}">
+      <span class="badge">id</span>
+      <button class="xbtn" title="删除此问题">×</button>
+    </div>
+    <div class="frow"><textarea class="qinstr" placeholder="instructions：完整问题，用反引号引用 state 字段，如 \`text\`">${esc(q.instructions)}</textarea></div>
+    <div class="qcrit">${crit}</div>`;
+  d.querySelector(".xbtn").onclick=()=>d.remove();
+  d.querySelector(".qtype").onchange=()=>{ // 换类型重建 criteria 区
+    const nd=qcard({id:d.querySelector(".qid").value,type:d.querySelector(".qtype").value,instructions:d.querySelector(".qinstr").value});
+    d.replaceWith(nd);
+  };
+  const ao=d.querySelector(".addopt");
+  if(ao)ao.onclick=()=>{
+    const rows=d.querySelector(".optrows");
+    const n=rows.children.length;
+    rows.insertAdjacentHTML("beforeend",optrow(nextLetter(n),""));
+    bindX(rows.lastChild);
+  };
+  d.querySelectorAll(".optrows .optrow").forEach(bindX);
+  function bindX(r){r.querySelector(".xbtn").onclick=()=>r.remove();}
+  return d;
+}
+function optrow(k,v){return `<div class="optrow"><input class="key" value="${esc(k)}"><input class="desc" value="${esc(v===null||v===undefined?"":v)}" placeholder="描述（可空）"><button class="xbtn">×</button></div>`;}
+$("#addq").onclick=()=>$("#questions").appendChild(qcard({id:"q"+($("#questions").children.length+1),type:"noul",instructions:""}));
+
+// ---------- 收集 & 发送 ----------
+function collect(){
+  const t=CUR.t,state={};
+  if(t.fields){
+    document.querySelectorAll("#statefields textarea[data-sk]").forEach(el=>{state[el.dataset.sk]=el.value;});
+    let empty=Object.values(state).every(v=>!v.trim());
+    if(empty)throw new Error("state 字段都是空的，填点内容。");
+  }else{
+    try{Object.assign(state,JSON.parse($("#statejson").value));}
+    catch(e){throw new Error("state JSON 不合法："+e.message);}
+  }
+  const qs=[];
+  document.querySelectorAll("#questions .qcard").forEach((d,i)=>{
+    const type=d.querySelector(".qtype").value;
+    const q={id:d.querySelector(".qid").value.trim()||("q"+(i+1)),type,instructions:d.querySelector(".qinstr").value.trim()};
+    if(!q.instructions)throw new Error(`问题 ${q.id}：instructions 为空。`);
+    if(type==="choice"){
+      q.options={};
+      d.querySelectorAll(".optrows .optrow").forEach(r=>{
+        const k=r.querySelector(".key").value.trim();if(!k)return;
+        q.options[k]=r.querySelector(".desc").value.trim()||null;
+      });
+      if(Object.keys(q.options).length<2)throw new Error(`问题 ${q.id}：choice 至少 2 个选项。`);
+    }else if(type==="score"){
+      q.levels=d.querySelector(".lv").value.split("\n").map(x=>x.trim()).filter(Boolean);
+      if(q.levels.length<2)throw new Error(`问题 ${q.id}：score 至少 2 个等级。`);
+    }else{
+      const c={};d.querySelectorAll(".crt").forEach(el=>{if(el.value.trim())c[el.dataset.w]=el.value.trim();});
+      if(c.true||c.false)q.criteria=c;
+    }
+    qs.push(q);
+  });
+  if(!qs.length)throw new Error("至少要有一个问题。");
+  if(t.patch)t.patch(state,qs[0]); // 模板后处理（MMLU：字段并入选项）
+  return {state,questions:qs};
+}
+
+async function send(){
+  const err=$("#errbox");err.style.display="none";
+  let payload;
+  try{payload=collect();}
+  catch(e){err.textContent=e.message;err.style.display="block";return;}
+  const req={key:keyEl.value.trim(),model:$("#model").value.trim()||"jev-latest",...payload};
+  const btn=$("#send");btn.disabled=true;btn.textContent="请求中…";
+  try{
+    const r=await fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(req)});
+    const j=await r.json();
+    if(!j.ok){err.textContent=j.error||("HTTP "+r.status);err.style.display="block";return;}
+    renderResult(j,req);
+  }catch(e){
+    err.textContent="无法连接本地服务（server.py 还在跑吗？）："+e;err.style.display="block";
+  }finally{btn.disabled=false;btn.textContent="发送请求（Ctrl+Enter）";}
+}
+$("#send").onclick=send;
+document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")send();});
+
+// ---------- 结果渲染 ----------
+function renderResult(j,req){
+  const ph=$("#results .placeholder");if(ph)ph.remove();
+  const card=document.createElement("div");card.className="rescard";
+  const qs=req.questions.map(q=>q.id).join(", ");
+  let html=`<div class="meta"><span>模型 <b>${esc(j.model)}</b></span><span>${j.latency_ms} ms</span><span>${(j.usage&&j.usage.input_tokens)||0} input tok</span><span>≈ $${(j.est_cost_usd||0).toFixed(6)}</span><span>${new Date().toLocaleTimeString()}</span></div>`;
+  for(const qid of Object.keys(j.answers)){
+    const a=j.answers[qid]||{};
+    html+=`<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px">`;
+    if("choice" in a){
+      html+=`<div class="ans">${esc(a.choice)} <small>（问题 ${esc(qid)}）</small></div>`;
+      const probs=Object.entries(a.probabilities||{}).sort((x,y)=>y[1]-x[1]);
+      const top=probs[0]&&probs[0][0];
+      for(const[k,v]of probs){
+        html+=`<div class="pbar${k===a.choice?" top":""}"><span>${esc(k)}${k===top?" ◁":""}</span><div class="track"><div class="fill" style="width:${Math.max(1,v*100)}%"></div></div><span class="pct">${(v*100).toFixed(1)}%</span></div>`;
+      }
+      html+=conf(a.confidence);
+    }else if("noul" in a){
+      const v=a.noul;
+      const reading=v>0.65?"倾向 是":v<0.35?"倾向 否":"≈0.5：五五开（注意：不是“中等程度”）";
+      html+=`<div class="ans">P(yes) = ${v.toFixed(2)} <small>（问题 ${esc(qid)} · ${reading}）</small></div>
+        <div class="noulbar"><div class="fill" style="width:${v*100}%"></div><div class="half"></div><div class="knob" style="left:${v*100}%"></div></div>
+        <div class="hint">0 ─ 0.5 ─ 1（虚线=0.5 阈值）</div>`;
+    }else if("score" in a){
+      const legend=a.legend||(a.probabilities?Object.keys(a.probabilities):[]);
+      const n=Math.max(legend.length-1,1),v=a.score;
+      html+=`<div class="ans">${(+v).toFixed(2)} <small>/ ${n}（问题 ${esc(qid)}）</small></div><div class="scale"><div class="rail"></div><div class="knob" style="left:${Math.min(Math.max(v/n,0),1)*100}%"></div>`;
+      legend.forEach((_,i)=>html+=`<span class="lv" style="left:${(i/n)*100}%">${i}</span>`);
+      html+=`</div>`;
+      const probs=Object.entries(a.probabilities||{});
+      probs.forEach(([k,p])=>{html+=`<div class="pbar"><span style="font-size:11px;color:var(--dim)" title="${esc(legend[k]||"")}">L${esc(k)}</span><div class="track"><div class="fill" style="width:${Math.max(1,p*100)}%"></div></div><span class="pct">${(p*100).toFixed(1)}%</span></div>`;});
+      html+=conf(a.confidence);
+      html+=`<details style="margin-top:6px"><summary class="hint">等级全文</summary><pre>${esc((legend||[]).map((l,i)=>`L${i}: ${l}`).join("\n"))}</pre></details>`;
+    }else{
+      html+=`<pre>${esc(JSON.stringify(a,null,1))}</pre>`;
+    }
+    html+=`</div>`;
+  }
+  html+=`<details style="margin-top:12px"><summary class="hint">本次请求 JSON（问题：${esc(qs)}）</summary><pre>${esc(JSON.stringify({state:req.state,questions:req.questions},null,1))}</pre></details>`;
+  card.innerHTML=html;
+  $("#results").prepend(card);
+}
+function conf(c){
+  if(c===undefined||c===null)return"";
+  return`<div class="conf">置信度 <div class="track"><div class="fill" style="width:${c*100}%"></div></div> <b>${(+c).toFixed(2)}</b><span class="hint">（分布集中度，非正确性）</span></div>`;
+}
+
+loadTemplate("sentiment");
+</script>
+</body>
+</html>
