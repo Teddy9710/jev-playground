@@ -347,6 +347,7 @@ function renderResult(j,req){
     html+=`</div>`;
   }
   html+=`<details style="margin-top:12px"><summary class="hint">本次请求 JSON（问题：${esc(qs)}）</summary><pre>${esc(JSON.stringify({state:req.state,questions:req.questions},null,1))}</pre></details>`;
+  html+=`<details style="margin-top:4px"><summary class="hint">原始响应 JSON</summary><pre>${esc(JSON.stringify(j,null,1))}</pre></details>`;
   card.innerHTML=html;
   $("#results").prepend(card);
 }
