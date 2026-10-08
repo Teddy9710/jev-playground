@@ -42,6 +42,9 @@
   .xbtn:hover{color:var(--err)}
   .addbtn,.ghost{background:none;border:1px dashed var(--line);color:var(--dim);border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit;font-size:12px}
   .addbtn:hover,.ghost:hover{color:var(--accent);border-color:var(--accent)}
+  .bankitem{padding:7px 9px;border:1px solid var(--line);border-radius:6px;margin-bottom:5px;cursor:pointer;font-size:12.5px;color:var(--dim);background:var(--panel2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bankitem:hover{border-color:var(--accent);color:var(--fg)}
+  .gold{color:var(--warn);font-size:13px;margin-bottom:8px}
   #send{width:100%;padding:11px;font-size:15px;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer}
   #send:disabled{opacity:.45;cursor:wait}
   #errbox{display:none;background:#3a1d1d;border:1px solid #6b2f2f;color:#ffb4b4;border-radius:8px;padding:10px 12px;margin-bottom:12px;white-space:pre-wrap}
@@ -88,6 +91,16 @@
       <h3>题目模板</h3>
       <select id="tpl" style="width:100%"></select>
       <div class="hint" id="tplnote" style="margin-top:6px"></div>
+    </div>
+    <div class="card">
+      <h3>从题库选题（37 个基准数据集真题）</h3>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <select id="banktask" style="flex:1"></select>
+        <button class="ghost" id="bankget">取题</button>
+        <button class="ghost" id="banknext" title="下一批">››</button>
+      </div>
+      <div class="hint" style="margin-bottom:6px">点一条真题自动载入下方编辑器（可再改），发送后右上会显示标准答案。首次取题要加载缓存，可能等几十秒。</div>
+      <div id="bankitems"><div class="hint">选任务后点「取题」。</div></div>
     </div>
     <div class="card">
       <h3>State（题目内容）</h3>
@@ -249,6 +262,52 @@ function qcard(q){
 function optrow(k,v){return `<div class="optrow"><input class="key" value="${esc(k)}"><input class="desc" value="${esc(v===null||v===undefined?"":v)}" placeholder="描述（可空）"><button class="xbtn">×</button></div>`;}
 $("#addq").onclick=()=>$("#questions").appendChild(qcard({id:"q"+($("#questions").children.length+1),type:"noul",instructions:""}));
 
+// ---------- 题库选题 ----------
+let BANK={task:null,offset:0,gold:null,goldTask:null};
+fetch("/api/tasks").then(r=>r.json()).then(j=>{
+  if(!j.ok)return;
+  j.tasks.forEach(t=>{const o=document.createElement("option");o.value=t.name;o.textContent=`${t.name} — ${t.description||""}`;$("#banktask").appendChild(o);});
+}).catch(()=>{});
+async function bankPick(next){
+  const task=$("#banktask").value;
+  if(!task)return;
+  const btn=$("#bankget");btn.disabled=true;btn.textContent="加载中…";
+  BANK.offset=next?BANK.offset+5:0;BANK.task=task;BANK.gold=null;
+  try{
+    const r=await fetch("/api/pick",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({task,offset:BANK.offset,n:5})});
+    const j=await r.json();
+    const box=$("#bankitems");
+    if(!j.ok){box.innerHTML=`<div class="hint" style="color:var(--err)">${esc(j.error)}</div>`;return;}
+    box.innerHTML="";
+    if(!j.items.length){box.innerHTML='<div class="hint">没有更多了（已到取题上限）。</div>';return;}
+    j.items.forEach((it,i)=>{
+      const prev=JSON.stringify(it.state);
+      const d=document.createElement("div");d.className="bankitem";
+      d.innerHTML=`<b>#${j.offset+i+1}</b> ${esc(prev.length>90?prev.slice(0,90)+"…":prev)}`;
+      d.onclick=()=>loadBankItem(it);
+      box.appendChild(d);
+    });
+    $("#banknext").style.display=j.more?"":"none";
+  }catch(e){
+    $("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">取题失败: ${esc(String(e))}</div>`;
+  }finally{btn.disabled=false;btn.textContent="取题";}
+}
+$("#bankget").onclick=()=>bankPick(false);
+$("#banknext").onclick=()=>bankPick(true);
+function harnessToQ(id,q){
+  if(q.type==="choice")return{id,type:"choice",instructions:q.instructions,options:q.criteria||{}};
+  if(q.type==="score")return{id,type:"score",instructions:q.instructions,levels:q.criteria||[]};
+  return{id,type:"noul",instructions:q.instructions,criteria:(q.criteria&&q.criteria.true)?q.criteria:undefined};
+}
+function loadBankItem(it){
+  $("#tpl").value="custom";loadTemplate("custom");
+  $("#statejson").value=JSON.stringify(it.state,null,2);
+  const qc=$("#questions");qc.innerHTML="";
+  Object.entries(it.questions).forEach(([id,q])=>qc.appendChild(qcard(harnessToQ(id,q))));
+  BANK.gold=it.gold;BANK.goldTask=BANK.task;
+  window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"});
+}
+
 // ---------- 收集 & 发送 ----------
 function collect(){
   const t=CUR.t,state={};
@@ -314,6 +373,10 @@ function renderResult(j,req){
   const card=document.createElement("div");card.className="rescard";
   const qs=req.questions.map(q=>q.id).join(", ");
   let html=`<div class="meta"><span>模型 <b>${esc(j.model)}</b></span><span>${j.latency_ms} ms</span><span>${(j.usage&&j.usage.input_tokens)||0} input tok</span><span>≈ $${(j.est_cost_usd||0).toFixed(6)}</span><span>${new Date().toLocaleTimeString()}</span></div>`;
+  if(BANK.gold&&BANK.goldTask){
+    const gs=Object.entries(BANK.gold).map(([k,v])=>typeof v==="boolean"?(v?k+" ✓":""):(k+" = "+v)).filter(Boolean).join(" · ");
+    html+=`<div class="gold">标准答案（${esc(BANK.goldTask)}）: <b>${esc(gs||"—")}</b> <span class="hint">— 若你在发送前改过题目，此答案可能不再适用</span></div>`;
+  }
   for(const qid of Object.keys(j.answers)){
     const a=j.answers[qid]||{};
     html+=`<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px">`;

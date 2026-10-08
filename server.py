@@ -7,13 +7,21 @@ API key 优先取环境变量 TYPESAFE_API_KEY，也可由页面输入（仅存�
 """
 
 import json
+import os
 import sys
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 from typesafe_sdk import Choice, Noul, Score, TypeSafeClient, TypeSafeAPIError
+
+# 题库：复用 jev-benchmarking harness + 本地 HF 缓存（必须在 import datasets 前设置）
+os.environ.setdefault("HF_HOME", "D:/jev/hf-home")
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+HARNESS_ROOT = "D:/jev/bench/jev-benchmarking"
 
 HOST, PORT = "127.0.0.1", 8770
 STATIC = Path(__file__).parent / "static"
@@ -107,12 +115,23 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html"):
             self._static("index.html", "text/html")
         elif self.path == "/api/health":
-            import os
             self._send(200, {"ok": True, "key_env": bool(os.environ.get("TYPESAFE_API_KEY"))})
+        elif self.path == "/api/tasks":
+            tasks = harness_tasks()
+            self._send(200, {"ok": True, "tasks": [
+                {"name": k, "description": t.description} for k, t in sorted(tasks.items())]})
         else:
             self._send(404, {"ok": False, "error": "not found"})
 
     def do_POST(self):
+        if self.path == "/api/pick":
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                code, payload = do_pick(json.loads(self.rfile.read(n).decode("utf-8")))
+            except Exception as e:  # noqa: BLE001
+                code, payload = 400, {"ok": False, "error": f"请求体不合法: {e}"}
+            self._send(code, payload)
+            return
         if self.path != "/api/ask":
             self._send(404, {"ok": False, "error": "not found"})
             return
@@ -163,6 +182,50 @@ class Handler(BaseHTTPRequestHandler):
             "est_cost_usd": round(in_tok / 1e6 * USD_PER_MTOK, 6),
             "answers": body.get("answers") or {},
         })
+
+
+# ---------------- 题库（harness 离线取题） ----------------
+_TASKS = None
+_tasks_lock = threading.Lock()
+
+
+def harness_tasks():
+    """懒加载 harness 的全部任务（首次 import datasets 需几秒）。"""
+    global _TASKS
+    with _tasks_lock:
+        if _TASKS is None:
+            sys.path.insert(0, HARNESS_ROOT)
+            from jev_benchmarking.tasks import ALL_TASKS
+            _TASKS = dict(ALL_TASKS)
+        return _TASKS
+
+
+def serialize_example(e) -> dict:
+    gold = {k: (sorted(v) if isinstance(v, frozenset) else v) for k, v in e.gold.items()}
+    return {"state": e.state, "questions": e.questions, "gold": gold}
+
+
+def do_pick(req: dict) -> tuple[int, dict]:
+    name = str(req.get("task") or "")
+    tasks = harness_tasks()
+    if name not in tasks:
+        return 400, {"ok": False, "error": f"未知任务 {name!r}"}
+    try:
+        offset = max(0, min(int(req.get("offset") or 0), 400))
+        n = max(1, min(int(req.get("n") or 5), 10))
+    except (TypeError, ValueError):
+        return 400, {"ok": False, "error": "offset/n 需为整数"}
+    t = tasks[name]
+    try:
+        exs = t.examples("eval", limit=offset + n)
+    except Exception as e:  # noqa: BLE001
+        return 502, {"ok": False, "error": f"题目加载失败: {type(e).__name__}: {str(e)[:200]}"}
+    items = [serialize_example(e) for e in exs[offset:offset + n]]
+    return 200, {
+        "ok": True, "task": name, "description": t.description,
+        "offset": offset, "items": items,
+        "more": len(exs) >= offset + n,  # 还有下一批可取
+    }
 
 
 def main():
