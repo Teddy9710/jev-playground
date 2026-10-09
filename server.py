@@ -6,6 +6,7 @@ API key 优先取环境变量 TYPESAFE_API_KEY，也可由页面输入（仅存�
 启动:  D:/jev/bench/jev-benchmarking/.venv/Scripts/python server.py  (或双击 start.bat)
 """
 
+import atexit
 import json
 import os
 import sys
@@ -93,13 +94,7 @@ def friendly_error(e: Exception) -> tuple[int, str]:
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # 只记请求行（方法/路径），绝不记请求体，杜绝 key 泄漏
-        line = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {self.address_string()} {fmt % args}"
-        print(line, file=sys.stderr)
-        try:
-            with open(LOG_FILE, "a", encoding="utf-8") as f:
-                f.write(line + "\n")
-        except OSError:
-            pass
+        _log_line(f"{self.address_string()} {fmt % args}")
 
     def _send(self, code: int, payload: dict):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -125,7 +120,11 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/health":
             self._send(200, {"ok": True, "key_env": bool(os.environ.get("TYPESAFE_API_KEY"))})
         elif self.path == "/api/tasks":
-            tasks = harness_tasks()
+            try:
+                tasks = harness_tasks()
+            except Exception as e:  # noqa: BLE001
+                self._send(503, {"ok": False, "error": f"题库加载失败（多半是内存不足，关掉些大程序再试）: {type(e).__name__}: {str(e)[:150]}"})
+                return
             self._send(200, {"ok": True, "tasks": [
                 {"name": k, "description": t.description} for k, t in sorted(tasks.items())]})
         else:
@@ -197,8 +196,18 @@ _TASKS = None
 _tasks_lock = threading.Lock()
 
 
+def _log_line(s: str):
+    line = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {s}"
+    print(line, file=sys.stderr)
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except OSError:
+        pass
+
+
 def harness_tasks():
-    """懒加载 harness 的全部任务（首次 import datasets 需几秒）。"""
+    """懒加载 harness 的全部任务（首次 import datasets 需几秒、>1GB 内存）。"""
     global _TASKS
     with _tasks_lock:
         if _TASKS is None:
@@ -208,6 +217,17 @@ def harness_tasks():
         return _TASKS
 
 
+def prewarm():
+    """启动后后台预热题库，首次取题不再等几十秒；失败不致命（取题时会给明确报错）。"""
+    try:
+        tasks = harness_tasks()
+        t = tasks.get("rotten_tomatoes") or next(iter(tasks.values()))
+        t.examples("eval", limit=1)
+        _log_line("prewarm done")
+    except BaseException as e:  # noqa: BLE001  # MemoryError 也要留下痕迹
+        _log_line(f"prewarm failed: {type(e).__name__}: {str(e)[:200]}")
+
+
 def serialize_example(e) -> dict:
     gold = {k: (sorted(v) if isinstance(v, frozenset) else v) for k, v in e.gold.items()}
     return {"state": e.state, "questions": e.questions, "gold": gold}
@@ -215,7 +235,10 @@ def serialize_example(e) -> dict:
 
 def do_pick(req: dict) -> tuple[int, dict]:
     name = str(req.get("task") or "")
-    tasks = harness_tasks()
+    try:
+        tasks = harness_tasks()
+    except Exception as e:  # noqa: BLE001
+        return 503, {"ok": False, "error": f"题库加载失败（多半是内存不足，关掉些大程序再点取题）: {type(e).__name__}: {str(e)[:150]}"}
     if name not in tasks:
         return 400, {"ok": False, "error": f"未知任务 {name!r}"}
     try:
@@ -242,8 +265,10 @@ def main():
         sys.stderr.reconfigure(encoding="utf-8")
     except Exception:
         pass
+    _log_line(f"SERVER START pid={os.getpid()}  http://{HOST}:{PORT}")
+    atexit.register(lambda: _log_line(f"SERVER STOP pid={os.getpid()}"))
+    threading.Thread(target=prewarm, daemon=True).start()
     srv = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"Jev Playground  http://{HOST}:{PORT}   (Ctrl-C 停止)")
     srv.serve_forever()
 
 
