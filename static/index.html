@@ -264,13 +264,31 @@ $("#addq").onclick=()=>$("#questions").appendChild(qcard({id:"q"+($("#questions"
 
 // ---------- 题库选题 ----------
 let BANK={task:null,offset:0,gold:null,goldTask:null};
-fetch("/api/tasks").then(r=>r.json()).then(j=>{
-  if(!j.ok)return;
-  j.tasks.forEach(t=>{const o=document.createElement("option");o.value=t.name;o.textContent=`${t.name} — ${t.description||""}`;$("#banktask").appendChild(o);});
-}).catch(()=>{});
+async function loadTasks(){
+  const sel=$("#banktask");
+  try{
+    const r=await fetch("/api/tasks");
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.error||("HTTP "+r.status));
+    sel.innerHTML="";
+    j.tasks.forEach(t=>{const o=document.createElement("option");o.value=t.name;o.textContent=`${t.name} — ${t.description||""}`;sel.appendChild(o);});
+    return true;
+  }catch(e){
+    sel.innerHTML="<option value=''>（任务列表加载失败）</option>";
+    $("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">任务列表加载失败: ${esc(String(e))} —— server.py 在跑吗？<button class="ghost" onclick="loadTasks()">重试</button></div>`;
+    return false;
+  }
+}
+window.loadTasks=loadTasks;
+loadTasks();
+window.addEventListener("error",e=>{const b=$("#errbox");b.textContent="页面脚本错误: "+e.message+"（"+(e.filename||"")+":"+e.lineno+"）";b.style.display="block";});
 async function bankPick(next){
   const task=$("#banktask").value;
-  if(!task)return;
+  if(!task){
+    $("#bankitems").innerHTML='<div class="hint" style="color:var(--err)">任务列表还是空的，正在重新加载…</div>';
+    if(await loadTasks())bankPick(next);
+    return;
+  }
   const btn=$("#bankget");btn.disabled=true;btn.textContent="加载中…";
   BANK.offset=next?BANK.offset+5:0;BANK.task=task;BANK.gold=null;
   try{
