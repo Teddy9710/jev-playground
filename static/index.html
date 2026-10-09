@@ -76,6 +76,7 @@
 <body>
 <header>
   <h1>Jev Playground <small>自输入题目 · 实时调 System One</small></h1>
+  <span class="hint" id="pgver" title="页面版本——刷新后若此处时间变了，说明拿到的就是最新页面" style="flex:none"></span>
   <div class="spacer"></div>
   <label class="hint">模型</label>
   <input id="model" value="jev-latest" style="width:120px;font-family:Consolas,monospace">
@@ -281,7 +282,9 @@ async function loadTasks(){
 }
 window.loadTasks=loadTasks;
 loadTasks();
+$("#pgver").textContent="页面版本 2026-10-09 13:52";
 window.addEventListener("error",e=>{const b=$("#errbox");b.textContent="页面脚本错误: "+e.message+"（"+(e.filename||"")+":"+e.lineno+"）";b.style.display="block";});
+window.addEventListener("unhandledrejection",e=>{const b=$("#errbox");b.textContent="异步请求错误: "+((e.reason&&e.reason.message)||e.reason);b.style.display="block";});
 async function bankPick(next){
   const task=$("#banktask").value;
   if(!task){

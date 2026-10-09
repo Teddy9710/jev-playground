@@ -25,6 +25,7 @@ HARNESS_ROOT = "D:/jev/bench/jev-benchmarking"
 
 HOST, PORT = "127.0.0.1", 8770
 STATIC = Path(__file__).parent / "static"
+LOG_FILE = Path(__file__).parent / "requests.log"  # 只记请求行（方法/路径），绝不记请求体
 USD_PER_MTOK = 0.042  # Jev 计价：输入 $0.042/MTok，输出免费
 
 
@@ -91,8 +92,14 @@ def friendly_error(e: Exception) -> tuple[int, str]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, fmt, *args):  # 安静模式：不打印请求体，杜绝 key 泄漏到控制台
-        print(f"[{time.strftime('%H:%M:%S')}] {self.address_string()} {fmt % args}", file=sys.stderr)
+    def log_message(self, fmt, *args):  # 只记请求行（方法/路径），绝不记请求体，杜绝 key 泄漏
+        line = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {self.address_string()} {fmt % args}"
+        print(line, file=sys.stderr)
+        try:
+            with open(LOG_FILE, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+        except OSError:
+            pass
 
     def _send(self, code: int, payload: dict):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
