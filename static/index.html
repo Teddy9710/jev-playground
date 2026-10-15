@@ -96,12 +96,12 @@
     <div class="card">
       <h3>从题库选题（37 个基准数据集真题）</h3>
       <div style="display:flex;gap:6px;margin-bottom:8px">
-        <select id="banktask" style="flex:1"></select>
+        <select id="banktask" style="flex:1" onchange="bankPick(false)"></select>
         <button class="ghost" id="bankget" onclick="bankPick(false)">取题</button>
         <button class="ghost" id="banknext" title="下一批" onclick="bankPick(true)" style="display:none">››</button>
       </div>
-      <div class="hint" style="margin-bottom:6px">点一条真题自动载入下方编辑器（可再改），发送后右上会显示标准答案。首次取题要加载缓存，可能等几十秒。</div>
-      <div id="bankitems"><div class="hint">选任务后点「取题」。</div></div>
+      <div class="hint" style="margin-bottom:6px">打开页面/切换任务即自动出题，无需点按钮。点一条真题（或行尾「载入↓」）载入下方编辑器，发送后结果卡上方显示标准答案。首次切到某任务可能要加载几十秒缓存。</div>
+      <div id="bankitems"><div class="hint">任务列表加载中…</div></div>
     </div>
     <div class="card">
       <h3>State（题目内容）</h3>
@@ -273,6 +273,7 @@ async function loadTasks(){
     if(!j.ok)throw new Error(j.error||("HTTP "+r.status));
     sel.innerHTML="";
     j.tasks.forEach(t=>{const o=document.createElement("option");o.value=t.name;o.textContent=`${t.name} — ${t.description||""}`;sel.appendChild(o);});
+    if(!window.__autoPicked){window.__autoPicked=true;bankPick(false);} // 打开页面即自动出第一批题，全程零点击
     return true;
   }catch(e){
     sel.innerHTML="<option value=''>（任务列表加载失败）</option>";
@@ -282,7 +283,7 @@ async function loadTasks(){
 }
 window.loadTasks=loadTasks;
 loadTasks();
-$("#pgver").textContent="页面版本 2026-10-15 14:35";
+$("#pgver").textContent="页面版本 2026-10-15 15:02";
 window.addEventListener("error",e=>{const b=$("#errbox");b.textContent="页面脚本错误: "+e.message+"（"+(e.filename||"")+":"+e.lineno+"）";b.style.display="block";});
 window.addEventListener("unhandledrejection",e=>{const b=$("#errbox");b.textContent="异步请求错误: "+((e.reason&&e.reason.message)||e.reason);b.style.display="block";});
 async function bankPick(next){
@@ -293,7 +294,7 @@ async function bankPick(next){
     if(await loadTasks())bankPick(next);
     return;
   }
-  const btn=$("#bankget");btn.disabled=true;btn.textContent="加载中…";
+  const btn=$("#bankget");if(btn){btn.disabled=true;btn.textContent="加载中…";}
   BANK.offset=next?BANK.offset+5:0;BANK.task=task;BANK.gold=null;
   try{
     const r=await fetch("/api/pick",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({task,offset:BANK.offset,n:5})});
@@ -302,19 +303,21 @@ async function bankPick(next){
     if(!j.ok){box.innerHTML=`<div class="hint" style="color:var(--err)">${esc(j.error)}</div>`;return;}
     box.innerHTML="";
     if(!j.items.length){box.innerHTML='<div class="hint">没有更多了（已到取题上限）。</div>';return;}
+    window.BANK_CUR=j.items;
     j.items.forEach((it,i)=>{
       const prev=JSON.stringify(it.state);
       const d=document.createElement("div");d.className="bankitem";
-      d.innerHTML=`<b>#${j.offset+i+1}</b> ${esc(prev.length>90?prev.slice(0,90)+"…":prev)}`;
+      d.innerHTML=`<b>#${j.offset+i+1}</b> ${esc(prev.length>90?prev.slice(0,90)+"…":prev)} <button class="ghost" style="margin-left:6px" onclick="event.stopPropagation();loadBankIdx(${i})">载入↓</button>`;
       d.onclick=()=>loadBankItem(it);
       box.appendChild(d);
     });
     $("#banknext").style.display=j.more?"":"none";
   }catch(e){
     $("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">取题失败: ${esc(String(e))}</div>`;
-  }finally{btn.disabled=false;btn.textContent="取题";}
+  }finally{if(btn){btn.disabled=false;btn.textContent="取题";}}
 }
 window.bankPick=bankPick; // 内联 onclick 在点击时才解析，绕开一切加载期绑定失败
+window.loadBankIdx=i=>loadBankItem((window.BANK_CUR||[])[i]);
 if(location.search.indexOf("autopick")>=0) setTimeout(()=>bankPick(false),800); // 自测钩子: /?autopick
 function harnessToQ(id,q){
   if(q.type==="choice")return{id,type:"choice",instructions:q.instructions,options:q.criteria||{}};
