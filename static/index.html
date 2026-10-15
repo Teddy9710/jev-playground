@@ -32,12 +32,12 @@
   .qcard{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px;background:var(--panel2)}
   .qhead{display:flex;gap:6px;margin-bottom:8px;align-items:center}
   .qhead select{width:96px}
-  .qhead input{flex:1;min-width:60px;font-family:Consolas,monospace;font-size:13px}
+  .qhead input{flex:1;min-width:0;font-family:Consolas,monospace;font-size:13px}
   .badge{font-size:11px;padding:2px 7px;border-radius:10px;background:#2b3550;color:#9fc0ff;flex:none}
   .badge.frozen{background:#24402f;color:#7fe0ae}
   .optrow{display:flex;gap:6px;margin-bottom:5px}
   .optrow input.key{width:70px;font-family:Consolas,monospace}
-  .optrow input.desc{flex:1}
+  .optrow input.desc{flex:1;min-width:0}
   .xbtn{background:none;border:none;color:var(--dim);cursor:pointer;font-size:15px;padding:0 6px}
   .xbtn:hover{color:var(--err)}
   .addbtn,.ghost{background:none;border:1px dashed var(--line);color:var(--dim);border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit;font-size:12px}
@@ -95,10 +95,13 @@
     </div>
     <div class="card">
       <h3>从题库选题（37 个基准数据集真题）</h3>
-      <div style="display:flex;gap:6px;margin-bottom:8px">
-        <select id="banktask" style="flex:1" onchange="bankPick(false)"></select>
-        <button class="ghost" id="bankget" onclick="bankPick(false)">取题</button>
-        <button class="ghost" id="banknext" title="下一批" onclick="bankPick(true)" style="display:none">››</button>
+      <div style="margin-bottom:8px">
+        <select id="banktask" style="width:100%;min-width:0" onchange="bankPick(false)"></select>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button class="ghost" id="bankget" onclick="bankPick(false)">取题</button>
+          <button class="ghost" id="banknext" title="下一批" onclick="bankPick(true)" style="display:none">››</button>
+          <span class="hint" style="align-self:center">（换任务也会自动出题）</span>
+        </div>
       </div>
       <div class="hint" style="margin-bottom:6px">打开页面/切换任务即自动出题，无需点按钮。点一条真题（或行尾「载入↓」）载入下方编辑器，发送后结果卡上方显示标准答案。首次切到某任务可能要加载几十秒缓存。</div>
       <div id="bankitems"><div class="hint">任务列表加载中…</div></div>
@@ -283,7 +286,7 @@ async function loadTasks(){
 }
 window.loadTasks=loadTasks;
 loadTasks();
-$("#pgver").textContent="页面版本 2026-10-15 15:02";
+$("#pgver").textContent="页面版本 2026-10-15 15:08";
 window.addEventListener("error",e=>{const b=$("#errbox");b.textContent="页面脚本错误: "+e.message+"（"+(e.filename||"")+":"+e.lineno+"）";b.style.display="block";});
 window.addEventListener("unhandledrejection",e=>{const b=$("#errbox");b.textContent="异步请求错误: "+((e.reason&&e.reason.message)||e.reason);b.style.display="block";});
 async function bankPick(next){
