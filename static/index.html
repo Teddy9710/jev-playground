@@ -78,8 +78,8 @@
   <h1>Jev Playground <small>自输入题目 · 实时调 System One</small></h1>
   <span class="hint" id="pgver" title="页面版本——刷新后若此处时间变了，说明拿到的就是最新页面" style="flex:none"></span>
   <div class="spacer"></div>
-  <label class="hint">模型</label>
-  <input id="model" value="jev-latest" style="width:120px;font-family:Consolas,monospace">
+  <select id="provider" title="决策模型提供方（providers.json 可加）" style="width:210px"></select>
+  <input id="model" value="jev-latest" title="模型名" style="width:120px;font-family:Consolas,monospace">
   <div class="keywrap">
     <span id="keydot" title="API key 状态"></span>
     <input id="key" type="password" placeholder="TYPESAFE_API_KEY（存本浏览器）" style="width:230px">
@@ -96,11 +96,15 @@
     <div class="card">
       <h3>从题库选题（37 个基准数据集真题）</h3>
       <div style="margin-bottom:8px">
-        <select id="banktask" style="width:100%;min-width:0" onchange="bankPick(false)"></select>
-        <div style="display:flex;gap:6px;margin-top:6px">
+        <select id="banktask" style="width:100%;min-width:0" onchange="onBankChange()"></select>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
           <button class="ghost" id="bankget" onclick="bankPick(false)">取题</button>
           <button class="ghost" id="banknext" title="下一批" onclick="bankPick(true)" style="display:none">››</button>
+          <button class="ghost" id="bankdel" onclick="bankDelete()" style="display:none">🗑 删除该题库</button>
           <span class="hint" style="align-self:center">（换任务也会自动出题）</span>
+          <span style="flex:1"></span>
+          <button class="ghost" id="bankupload" onclick="$('#bankfile').click()">⬆ 上传题库 JSON</button>
+          <input type="file" id="bankfile" accept=".json,application/json" style="display:none">
         </div>
       </div>
       <div class="hint" style="margin-bottom:6px">打开页面/切换任务即自动出题，无需点按钮。点一条真题（或行尾「载入↓」）载入下方编辑器，发送后结果卡上方显示标准答案。首次切到某任务可能要加载几十秒缓存。</div>
@@ -111,7 +115,7 @@
       <div id="statefields"></div>
     </div>
     <div class="card">
-      <h3>Questions <button class="addbtn" id="addq">＋ 添加问题</button></h3>
+      <h3>Questions <button class="addbtn" id="addq">＋ 添加问题</button> <button class="addbtn" id="savebank">💾 存入题库</button></h3>
       <div class="hint" style="margin:0 0 8px">同一请求内的问题并行独立求值（fan-out，只按一次请求计费）。</div>
       <div id="questions"></div>
     </div>
@@ -203,6 +207,26 @@ fetch("/api/health").then(r=>r.json()).then(h=>{
   else $("#keydot").title="未检测到环境变量 key，请在此输入";
 }).catch(()=>{});
 
+// ---------- 决策模型提供方 ----------
+let PROVIDERS=[];
+function applyProvider(){
+  const p=PROVIDERS.find(x=>x.id===$("#provider").value)||PROVIDERS[0];
+  if(!p)return;
+  if(p.model_default)$("#model").value=p.model_default;
+  keyEl.placeholder=p.needs_key?(p.kind==="typesafe"?"TYPESAFE_API_KEY（存本浏览器）":"该端点的 key（可选）"):"（该端点无需 key）";
+  localStorage.setItem("jev_provider",$("#provider").value);
+}
+fetch("/api/models").then(r=>r.json()).then(j=>{
+  if(!j.ok)return;
+  PROVIDERS=j.models;
+  const sel=$("#provider");
+  j.models.forEach(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=p.name;sel.appendChild(o);});
+  const cur=localStorage.getItem("jev_provider");
+  if(cur&&j.models.some(p=>p.id===cur))sel.value=cur;
+  applyProvider();
+}).catch(()=>{});
+$("#provider").addEventListener("change",applyProvider);
+
 // ---------- 模板渲染 ----------
 const tplSel=$("#tpl");
 Object.entries(T).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.name;tplSel.appendChild(o);});
@@ -286,7 +310,7 @@ async function loadTasks(){
 }
 window.loadTasks=loadTasks;
 loadTasks();
-$("#pgver").textContent="页面版本 2026-10-15 15:08";
+$("#pgver").textContent="页面版本 2026-10-15 16:38";
 window.addEventListener("error",e=>{const b=$("#errbox");b.textContent="页面脚本错误: "+e.message+"（"+(e.filename||"")+":"+e.lineno+"）";b.style.display="block";});
 window.addEventListener("unhandledrejection",e=>{const b=$("#errbox");b.textContent="异步请求错误: "+((e.reason&&e.reason.message)||e.reason);b.style.display="block";});
 async function bankPick(next){
@@ -322,6 +346,61 @@ async function bankPick(next){
 window.bankPick=bankPick; // 内联 onclick 在点击时才解析，绕开一切加载期绑定失败
 window.loadBankIdx=i=>loadBankItem((window.BANK_CUR||[])[i]);
 if(location.search.indexOf("autopick")>=0) setTimeout(()=>bankPick(false),800); // 自测钩子: /?autopick
+window.onBankChange=function(){
+  $("#bankdel").style.display=$("#banktask").value.indexOf("bank:")===0?"":"none";
+  bankPick(false);
+};
+window.bankDelete=async function(){
+  const v=$("#banktask").value;
+  if(v.indexOf("bank:")!==0)return;
+  const name=v.slice(5);
+  if(!confirm(`删除题库「${name}」？文件会一并删除，不可恢复。`))return;
+  try{
+    const r=await fetch("/api/banks/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bank:name})});
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.error||("HTTP "+r.status));
+    await loadTasks();
+    $("#bankitems").innerHTML='<div class="hint">题库已删除。</div>';
+  }catch(e){$("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">删除失败: ${esc(String(e))}</div>`;}
+};
+$("#bankfile").onchange=async function(){
+  const f=this.files[0];if(!f)return;
+  try{
+    const data=JSON.parse(await f.text());
+    const r=await fetch("/api/banks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.error||("HTTP "+r.status));
+    $("#bankitems").innerHTML=`<div class="hint" style="color:var(--ok)">题库「${esc(j.bank)}」已保存（${j.count} 题）。</div>`;
+    await loadTasks();
+  }catch(e){$("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">上传失败: ${esc(String(e.message||e))}</div>`;}
+  this.value="";
+};
+// ---------- 编辑器存题 ----------
+$("#savebank").onclick=function(){
+  let f=document.getElementById("saveform");
+  if(f){f.remove();return;}
+  f=document.createElement("div");f.id="saveform";
+  f.style.cssText="border:1px dashed var(--line);border-radius:8px;padding:10px;margin-bottom:10px";
+  f.innerHTML=`<div class="frow"><label>存到题库（不存在会新建；字母数字-_）</label><input id="svbank" value="my-bank" style="width:100%"></div>
+    <div class="frow"><label>标准答案 gold（可选 JSON，如 {"answer":"positive"}）</label><input id="svgold" placeholder='{"answer":"..."}' style="width:100%"></div>
+    <div style="display:flex;gap:8px;align-items:center"><button class="ghost" id="svgo">保存</button><span class="hint" id="svmsg"></span></div>`;
+  $("#questions").prepend(f);
+  $("#svgo").onclick=async function(){
+    const msg=$("#svmsg");msg.textContent="";msg.style.color="";
+    try{
+      const payload=collect(); // 复用发送前的校验
+      let gold={};const g=$("#svgold").value.trim();
+      if(g){gold=JSON.parse(g);if(typeof gold!=="object"||Array.isArray(gold)||gold===null)throw new Error("gold 需是 JSON 对象");}
+      const r=await fetch("/api/banks/add_item",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({bank:$("#svbank").value.trim()||"my-bank",state:payload.state,questions:payload.questions,gold})});
+      const j=await r.json();
+      if(!j.ok)throw new Error(j.error||("HTTP "+r.status));
+      msg.style.color="var(--ok)";msg.textContent=`✓ 已存入「${j.bank}」（共 ${j.count} 题）`;
+      setTimeout(()=>f.remove(),1500);
+      loadTasks();
+    }catch(e){msg.style.color="var(--err)";msg.textContent=String(e.message||e);}
+  };
+};
 function harnessToQ(id,q){
   if(q.type==="choice")return{id,type:"choice",instructions:q.instructions,options:q.criteria||{}};
   if(q.type==="score")return{id,type:"score",instructions:q.instructions,levels:q.criteria||[]};
@@ -378,7 +457,7 @@ async function send(){
   let payload;
   try{payload=collect();}
   catch(e){err.textContent=e.message;err.style.display="block";return;}
-  const req={key:keyEl.value.trim(),model:$("#model").value.trim()||"jev-latest",...payload};
+  const req={key:keyEl.value.trim(),provider:$("#provider").value||"typesafe",model:$("#model").value.trim()||"jev-latest",...payload};
   const btn=$("#send");btn.disabled=true;btn.textContent="请求中…";
   try{
     const r=await fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(req)});
@@ -400,7 +479,7 @@ function renderResult(j,req){
   const ph=$("#results .placeholder");if(ph)ph.remove();
   const card=document.createElement("div");card.className="rescard";
   const qs=req.questions.map(q=>q.id).join(", ");
-  let html=`<div class="meta"><span>模型 <b>${esc(j.model)}</b></span><span>${j.latency_ms} ms</span><span>${(j.usage&&j.usage.input_tokens)||0} input tok</span><span>≈ $${(j.est_cost_usd||0).toFixed(6)}</span><span>${new Date().toLocaleTimeString()}</span></div>`;
+  let html=`<div class="meta"><span>${esc(j.provider||"typesafe")}</span><span>模型 <b>${esc(j.model)}</b></span><span>${j.latency_ms} ms</span><span>${(j.usage&&j.usage.input_tokens)||0} input tok</span><span>≈ $${(j.est_cost_usd||0).toFixed(6)}</span><span>${new Date().toLocaleTimeString()}</span></div>`;
   if(BANK.gold&&BANK.goldTask){
     const gs=Object.entries(BANK.gold).map(([k,v])=>typeof v==="boolean"?(v?k+" ✓":""):(k+" = "+v)).filter(Boolean).join(" · ");
     html+=`<div class="gold">标准答案（${esc(BANK.goldTask)}）: <b>${esc(gs||"—")}</b> <span class="hint">— 若你在发送前改过题目，此答案可能不再适用</span></div>`;

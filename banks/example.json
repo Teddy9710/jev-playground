@@ -1,0 +1,22 @@
+{
+ "name": "example",
+ "description": "自建题库示例：两道 sentiment 题，含标准答案",
+ "items": [
+  {
+   "state": {"review": "An utterly gorgeous movie that redeems the whole genre — I've seen it four times and cried every time."},
+   "questions": {
+    "answer": {"type": "choice", "instructions": "What is the overall sentiment of `review` toward the movie?",
+     "criteria": {"negative": "The text expresses a negative opinion.", "positive": "The text expresses a positive opinion."}}
+   },
+   "gold": {"answer": "positive"}
+  },
+  {
+   "state": {"message": "Congratulations!! You won a $1000 gift card, claim now at totally-legit-site.example"},
+   "questions": {
+    "spam": {"type": "noul", "instructions": "Is the SMS `message` spam, such as unsolicited advertising or prize scams?",
+     "criteria": null}
+   },
+   "gold": {"spam": true}
+  }
+ ]
+}

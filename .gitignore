@@ -1,2 +1,5 @@
 __pycache__/
 requests.log
+banks/*
+!banks/example.json
+providers.json

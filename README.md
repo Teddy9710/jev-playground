@@ -30,6 +30,23 @@ Pick from 40 tasks (37 public benchmark datasets + probes). Opening the page and
 
 > Requires the `jev-benchmarking` harness on disk (see `HARNESS_ROOT` in `server.py`) plus its venv; if unavailable, `/api/tasks` returns a clear error instead of failing silently.
 
+## Custom question banks
+
+Beyond the 40 benchmark tasks you can bring your own questions, stored as plain JSON files in `banks/`:
+
+- **Upload** — the ⬆ button on the bank card accepts a `{"name", "description", "items": [{"state", "questions", "gold"}]}` file (see `banks/example.json`; same shape `/api/pick` returns, zero new concepts — `questions` uses the raw Jev shape: choice `criteria={option: desc}`, score `criteria=[levels]`, noul `criteria=null`).
+- **Save from editor** — the 存入题库 button stores whatever is currently in the editor (state + questions + optional gold) as a new item in a bank of your choosing; creates the bank if it doesn't exist.
+- Custom banks show up in the task dropdown as `📁 name — 自建` and work with zero-click auto-pick; they never touch the harness or the network. 🗑 deletes a bank (with confirm).
+
+## Pluggable decision models
+
+The header dropdown picks the backend for 发送:
+
+- **TypeSafe Jev（官方 API）** — the original path via `typesafe_sdk`.
+- **Jev 兼容端点** — any self-hosted service speaking the Jev HTTP contract (`POST {state, model, questions}` → `{model, answers, usage}`), e.g. [Intern-Decision](https://github.com/intern_lm/Intern-Decision) via `bash scripts/demo.sh` on `http://127.0.0.1:7860/v1/jev`.
+
+Endpoints are configured in `providers.json` (auto-created on first run, hot-reloaded — edit it without restarting; `providers.example.json` shows the schema). Per provider: `id`, `kind` (`typesafe`/`compatible`), `url`, `model_default`, and optional `key_env` (name of an env var holding the API key — the file itself must never contain key values; for the official provider the page input takes precedence, then `TYPESAFE_API_KEY`). Compatible endpoints need no key by default — the `Authorization` header is only sent when a key resolves.
+
 ## Built-in templates
 
 Templates marked *paper-frozen* use the exact question wording from the benchmark harness (verified: this repo's author reproduced all 37/37 results offline).
@@ -92,6 +109,23 @@ key 在 <https://console.typesafe.ai> 创建。计价：**输入 $0.042/MTok，�
 40 个任务（37 个基准数据集 + 探针）。打开页面、切换任务都会**自动出题**，「取题」按钮只是备用。点题目行（或行尾「载入↓」）载入编辑器；发送后结果卡上方显示该题标准答案。数据全部来自本地 HF 缓存——离线、不耗 token。
 
 > 题库依赖磁盘上的 `jev-benchmarking` harness（见 `server.py` 里的 `HARNESS_ROOT`）及其 venv；不可用时 `/api/tasks` 会返回明确报错，不会无声失败。
+
+## 自建题库
+
+除了 40 个基准任务，还能上传自己的题，以纯 JSON 文件存在 `banks/` 目录：
+
+- **上传** — 题库卡上的 ⬆ 按钮接受 `{"name", "description", "items": [{"state", "questions", "gold"}]}` 文件（示例见 `banks/example.json`；形状与 `/api/pick` 返回的一致，零新概念——`questions` 用 raw Jev 形状：choice `criteria={选项:描述}`，score `criteria=[等级]`，noul `criteria=null`）。
+- **编辑器存题** — 「存入题库」按钮把编辑器当前内容（state + 问题 + 可选 gold）作为一条新题存进指定题库；题库不存在则自动创建。
+- 自建题库在任务下拉里显示为 `📁 名称 — 自建`，同样支持零点击自动出题；完全不依赖 harness 和网络。🗑 删除题库（有确认弹窗）。
+
+## 可插拔决策模型
+
+顶栏下拉框选择「发送」调用的后端：
+
+- **TypeSafe Jev（官方 API）** — 原路径，走 `typesafe_sdk`。
+- **Jev 兼容端点** — 任何说 Jev HTTP 契约（`POST {state, model, questions}` → `{model, answers, usage}`）的自部署服务，例如 [Intern-Decision](https://github.com/intern_lm/Intern-Decision)：`bash scripts/demo.sh` 后填 `http://127.0.0.1:7860/v1/jev`。
+
+端点配置在 `providers.json`（首跑自动生成，热重载——改完不用重启；`providers.example.json` 是格式示例）。每个 provider：`id`、`kind`（`typesafe`/`compatible`）、`url`、`model_default`、可选 `key_env`（存 API key 的**环境变量名**——文件里绝不放 key 本身；官方 provider 的 key 优先级：页面输入 > `TYPESAFE_API_KEY`）。兼容端点默认无需 key——只有解析到 key 时才发 `Authorization` 头。
 
 ## 内置模板
 

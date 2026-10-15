@@ -1,0 +1,18 @@
+{
+  "providers": [
+    {
+      "id": "typesafe",
+      "name": "TypeSafe Jev（官方 API）",
+      "kind": "typesafe",
+      "model_default": "jev-latest"
+    },
+    {
+      "id": "intern",
+      "name": "Intern-Decision（本机自部署）",
+      "kind": "compatible",
+      "url": "http://127.0.0.1:7860/v1/jev",
+      "model_default": "intern-decision-2b",
+      "key_env": ""
+    }
+  ]
+}
