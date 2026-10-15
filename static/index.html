@@ -97,8 +97,8 @@
       <h3>从题库选题（37 个基准数据集真题）</h3>
       <div style="display:flex;gap:6px;margin-bottom:8px">
         <select id="banktask" style="flex:1"></select>
-        <button class="ghost" id="bankget">取题</button>
-        <button class="ghost" id="banknext" title="下一批">››</button>
+        <button class="ghost" id="bankget" onclick="bankPick(false)">取题</button>
+        <button class="ghost" id="banknext" title="下一批" onclick="bankPick(true)" style="display:none">››</button>
       </div>
       <div class="hint" style="margin-bottom:6px">点一条真题自动载入下方编辑器（可再改），发送后右上会显示标准答案。首次取题要加载缓存，可能等几十秒。</div>
       <div id="bankitems"><div class="hint">选任务后点「取题」。</div></div>
@@ -282,10 +282,11 @@ async function loadTasks(){
 }
 window.loadTasks=loadTasks;
 loadTasks();
-$("#pgver").textContent="页面版本 2026-10-09 13:52";
+$("#pgver").textContent="页面版本 2026-10-15 14:35";
 window.addEventListener("error",e=>{const b=$("#errbox");b.textContent="页面脚本错误: "+e.message+"（"+(e.filename||"")+":"+e.lineno+"）";b.style.display="block";});
 window.addEventListener("unhandledrejection",e=>{const b=$("#errbox");b.textContent="异步请求错误: "+((e.reason&&e.reason.message)||e.reason);b.style.display="block";});
 async function bankPick(next){
+  console.log("[取题] clicked, task =", $("#banktask").value||"(空)");
   const task=$("#banktask").value;
   if(!task){
     $("#bankitems").innerHTML='<div class="hint" style="color:var(--err)">任务列表还是空的，正在重新加载…</div>';
@@ -313,8 +314,8 @@ async function bankPick(next){
     $("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">取题失败: ${esc(String(e))}</div>`;
   }finally{btn.disabled=false;btn.textContent="取题";}
 }
-$("#bankget").onclick=()=>bankPick(false);
-$("#banknext").onclick=()=>bankPick(true);
+window.bankPick=bankPick; // 内联 onclick 在点击时才解析，绕开一切加载期绑定失败
+if(location.search.indexOf("autopick")>=0) setTimeout(()=>bankPick(false),800); // 自测钩子: /?autopick
 function harnessToQ(id,q){
   if(q.type==="choice")return{id,type:"choice",instructions:q.instructions,options:q.criteria||{}};
   if(q.type==="score")return{id,type:"score",instructions:q.instructions,levels:q.criteria||[]};
@@ -441,6 +442,7 @@ function conf(c){
 }
 
 loadTemplate("sentiment");
+console.log("[页面] JS 全部加载完成，取题/发送按钮就绪");
 </script>
 </body>
 </html>

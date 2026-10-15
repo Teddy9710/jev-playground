@@ -14,6 +14,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict
 from typesafe_sdk import Choice, Noul, Score, TypeSafeClient, TypeSafeAPIError
@@ -115,11 +116,12 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        if self.path in ("/", "/index.html"):
+        path = urlsplit(self.path).path  # 剥掉查询串，/?x 与 / 等价
+        if path in ("/", "/index.html"):
             self._static("index.html", "text/html")
-        elif self.path == "/api/health":
+        elif path == "/api/health":
             self._send(200, {"ok": True, "key_env": bool(os.environ.get("TYPESAFE_API_KEY"))})
-        elif self.path == "/api/tasks":
+        elif path == "/api/tasks":
             try:
                 tasks = harness_tasks()
             except Exception as e:  # noqa: BLE001
@@ -131,7 +133,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, {"ok": False, "error": "not found"})
 
     def do_POST(self):
-        if self.path == "/api/pick":
+        path = urlsplit(self.path).path
+        if path == "/api/pick":
             try:
                 n = int(self.headers.get("Content-Length") or 0)
                 code, payload = do_pick(json.loads(self.rfile.read(n).decode("utf-8")))
