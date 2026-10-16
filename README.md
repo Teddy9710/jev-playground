@@ -49,6 +49,10 @@ The header dropdown picks the backend for 发送:
 
 Endpoints are configured in `providers.json` (auto-created on first run, hot-reloaded — edit it without restarting; `providers.example.json` shows the schema). Per provider: `id`, `kind` (`typesafe`/`openai`/`compatible`), `url`, `model_default`, optional `key_env` (name of an env var holding the API key — the file itself must never contain key values; key precedence: page input, then the `key_env` variable), and optional `auth` (`"api-key"` for Azure Foundry–style header auth; default Bearer). Compatible endpoints without `key_env` need no auth — a key typed into the page is still sent as `Authorization`; endpoints with `key_env` fail fast with a friendly message when no key resolves.
 
+## Model comparison
+
+The **⚖ 对比** button in the header switches to compare mode: the provider/model/key controls hide and a contender list appears — each row is *provider + model name* (so you can also pit two models of the same endpoint against each other, e.g. `microsoft/microsoft-decision-1` vs `typesafe/jev-1.13` on OpenRouter). 发送 fires the same questions at every checked row in parallel and renders one grid with **questions as rows, models as columns**: answers, probability bars, latency, tokens and cost side by side; a model that errors gets a red ❌ column with the message instead of breaking the others. Keys are taken **only from each endpoint's env var** in compare mode (one page key can't be valid for several endpoints); each model is billed separately — the session counter reflects that.
+
 ## Built-in templates
 
 Templates marked *paper-frozen* use the exact question wording from the benchmark harness (verified: this repo's author reproduced all 37/37 results offline).
@@ -130,6 +134,10 @@ key 在 <https://console.typesafe.ai> 创建。计价：**输入 $0.042/MTok，�
 - **Jev 兼容端点** — 任何说 Jev HTTP 契约（`POST {state, model, questions}` → `{model, answers, usage}`）的自部署服务，例如 [Intern-Decision](https://github.com/intern_lm/Intern-Decision)：`bash scripts/demo.sh` 后填 `http://127.0.0.1:7860/v1/jev`。回传 `usage.cost` 的托管兼容端点（如 OpenRouter）显示真实费用而非 0。
 
 端点配置在 `providers.json`（首跑自动生成，热重载——改完不用重启；`providers.example.json` 是格式示例）。每个 provider：`id`、`kind`（`typesafe`/`openai`/`compatible`）、`url`、`model_default`、可选 `key_env`（存 API key 的**环境变量名**——文件里绝不放 key 本身；key 优先级：页面输入 > key_env 指定的环境变量）、可选 `auth`（Azure Foundry 直连用 `"api-key"`，默认 Bearer）。没配 `key_env` 的兼容端点免认证（页面手动输入的 key 仍会带 `Authorization` 头）；配了 `key_env` 的端点解析不到 key 时直接报友好错误。
+
+## 模型对比
+
+顶栏 **⚖ 对比** 按钮切换对比模式：provider/模型/key 控件隐藏，出现选手列表——每行是 *provider + 模型名*（因此也能比同端点的两个模型，比如 OpenRouter 上的 `microsoft/microsoft-decision-1` 对 `typesafe/jev-1.13`）。「发送」把同一题目并行发给所有勾选行，渲染成**问题为行、模型为列**的网格：答案、概率条、延迟、token、费用并排；某个模型出错只显示红色 ❌ 列和错误信息，不影响其余列。对比模式 key **只从各端点的环境变量取**（单一页面 key 不可能同时合法发往多个端点）；每个模型各计一次费，会话累计如实相加。
 
 ## 内置模板
 

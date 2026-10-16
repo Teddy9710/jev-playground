@@ -71,6 +71,11 @@
   details pre{background:#10131a;border-radius:8px;padding:10px;overflow:auto;font-size:12px;color:#b7c0d4}
   .hint{color:var(--dim);font-size:12px}
   .placeholder{color:var(--dim);text-align:center;padding:50px 10px;border:1px dashed var(--line);border-radius:10px}
+  .ghost.on{border-style:solid;border-color:var(--accent);color:var(--accent)}
+  .cmprow{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+  .cmpgrid{display:grid;min-width:fit-content;border-top:1px solid var(--line);border-left:1px solid var(--line)}
+  .cmpcell{padding:9px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12.5px;min-width:0}
+  .cmphead,.cmplab{background:var(--panel2);font-size:12px}
 </style>
 </head>
 <body>
@@ -84,6 +89,7 @@
     <span id="keydot" title="API key 状态"></span>
     <input id="key" type="password" placeholder="TYPESAFE_API_KEY（存本浏览器）" style="width:230px">
   </div>
+  <button id="cmpbtn" class="ghost" title="多模型并排对比同一题目（对比模式下 key 只从各端点的环境变量取）" style="flex:none">⚖ 对比</button>
 </header>
 
 <main>
@@ -118,6 +124,11 @@
       <h3>Questions <button class="addbtn" id="addq">＋ 添加问题</button> <button class="addbtn" id="savebank">💾 存入题库</button></h3>
       <div class="hint" style="margin:0 0 8px">同一请求内的问题并行独立求值（fan-out，只按一次请求计费）。</div>
       <div id="questions"></div>
+    </div>
+    <div class="card" id="comparebox" style="display:none">
+      <h3>对比模式 <button class="addbtn" id="cmpadd">＋ 添加选手</button></h3>
+      <div class="hint" style="margin:0 0 8px">勾选要一起发送的模型，每行 = provider + 模型名（可比同端点的不同模型，如 OpenRouter 上的 microsoft-decision-1 与 typesafe/jev-1.13）。同一题发给全部勾选项，结果按「问题 × 模型」并排。<b>对比模式 key 只从各端点的环境变量取</b>（页面 key 框停用，避免把一个 key 发给多个端点）；每个模型各计一次费。</div>
+      <div id="cmprows"></div>
     </div>
     <div id="errbox"></div>
     <button id="send">发送请求（Ctrl+Enter）</button>
@@ -224,6 +235,7 @@ fetch("/api/models").then(r=>r.json()).then(j=>{
   const cur=localStorage.getItem("jev_provider");
   if(cur&&j.models.some(p=>p.id===cur))sel.value=cur;
   applyProvider();
+  if(CMP_ON&&!$("#cmprows").children.length)buildCmpRows(); // 对比模式先开、provider 列表后到的场景
 }).catch(()=>{});
 $("#provider").addEventListener("change",applyProvider);
 
@@ -310,7 +322,7 @@ async function loadTasks(){
 }
 window.loadTasks=loadTasks;
 loadTasks();
-$("#pgver").textContent="页面版本 2026-10-16 11:30";
+$("#pgver").textContent="页面版本 2026-10-16 14:03";
 window.addEventListener("error",e=>{const b=$("#errbox");b.textContent="页面脚本错误: "+e.message+"（"+(e.filename||"")+":"+e.lineno+"）";b.style.display="block";});
 window.addEventListener("unhandledrejection",e=>{const b=$("#errbox");b.textContent="异步请求错误: "+((e.reason&&e.reason.message)||e.reason);b.style.display="block";});
 async function bankPick(next){
@@ -346,6 +358,12 @@ async function bankPick(next){
 window.bankPick=bankPick; // 内联 onclick 在点击时才解析，绕开一切加载期绑定失败
 window.loadBankIdx=i=>loadBankItem((window.BANK_CUR||[])[i]);
 if(location.search.indexOf("autopick")>=0) setTimeout(()=>bankPick(false),800); // 自测钩子: /?autopick
+if(location.search.indexOf("cmp=1")>=0) setTimeout(()=>{ // 自测钩子: /?cmp=1 —— 开对比、载入最小题目并自动发送
+  setCmp(true);
+  $("#tpl").value="custom";loadTemplate("custom");
+  $("#statejson").value=JSON.stringify({text:"My checkout page shows a blank screen after I click Pay."});
+  send();
+},1500);
 window.onBankChange=function(){
   $("#bankdel").style.display=$("#banktask").value.indexOf("bank:")===0?"":"none";
   bankPick(false);
@@ -457,6 +475,7 @@ async function send(){
   let payload;
   try{payload=collect();}
   catch(e){err.textContent=e.message;err.style.display="block";return;}
+  if(CMP_ON){await sendCompare(payload);return;}
   const req={key:keyEl.value.trim(),provider:$("#provider").value||"typesafe",model:$("#model").value.trim()||"jev-latest",...payload};
   const btn=$("#send");btn.disabled=true;btn.textContent="请求中…";
   try{
@@ -471,52 +490,141 @@ async function send(){
 $("#send").onclick=send;
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")send();});
 
+// ---------- 对比模式：多模型并排 ----------
+let CMP_ON=false;
+function setCmp(on){
+  CMP_ON=on;
+  localStorage.setItem("jev_compare",on?"1":"");
+  $("#cmpbtn").classList.toggle("on",on);
+  $("#provider").style.display=on?"none":"";
+  $("#model").style.display=on?"none":"";
+  document.querySelector(".keywrap").style.display=on?"none":"";
+  $("#comparebox").style.display=on?"":"none";
+  if(on&&PROVIDERS.length&&!$("#cmprows").children.length)buildCmpRows();
+}
+$("#cmpbtn").onclick=()=>setCmp(!CMP_ON);
+function cmpRow(prov){
+  const d=document.createElement("div");d.className="cmprow";
+  d.innerHTML=`<input type="checkbox" class="cmpon" checked title="勾选=参与本次对比">
+    <select class="cmpprov" style="width:210px"></select>
+    <input class="cmpmodel" style="flex:1;min-width:110px;font-family:Consolas,monospace" title="模型名（留空=该 provider 的默认）">
+    <button class="xbtn" title="删除该行">✕</button>`;
+  const sel=d.querySelector(".cmpprov"),model=d.querySelector(".cmpmodel");
+  PROVIDERS.forEach(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=p.name;sel.appendChild(o);});
+  sel.value=prov.id;model.value=prov.model_default||"";
+  sel.addEventListener("change",()=>{const p=PROVIDERS.find(x=>x.id===sel.value);model.value=(p&&p.model_default)||"";});
+  d.querySelector(".xbtn").onclick=()=>d.remove();
+  $("#cmprows").appendChild(d);
+}
+function buildCmpRows(){$("#cmprows").innerHTML="";PROVIDERS.forEach(p=>cmpRow(p));}
+$("#cmpadd").onclick=()=>cmpRow(PROVIDERS[0]||{id:"typesafe",model_default:"jev-latest"});
+if(localStorage.getItem("jev_compare"))setCmp(true);
+
+async function sendCompare(payload){
+  const err=$("#errbox");
+  const rows=[...document.querySelectorAll("#cmprows .cmprow")].filter(r=>r.querySelector(".cmpon").checked)
+    .map(r=>({provider:r.querySelector(".cmpprov").value,model:r.querySelector(".cmpmodel").value.trim()}));
+  if(!rows.length){err.textContent="对比模式：至少勾选一个模型。";err.style.display="block";return;}
+  const btn=$("#send");btn.disabled=true;btn.textContent=`请求中…（${rows.length} 个模型）`;
+  try{
+    const settled=await Promise.allSettled(rows.map(w=>
+      fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({provider:w.provider,model:w.model,...payload})}) // 不带页面 key：各端点用各自环境变量
+        .then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.error||("HTTP "+r.status));return j;})));
+    renderCompare(rows,settled,payload);
+  }catch(e){
+    err.textContent="无法连接本地服务（server.py 还在跑吗？）："+e;err.style.display="block";
+  }finally{btn.disabled=false;btn.textContent="发送请求（Ctrl+Enter）";}
+}
+
+function renderCompare(rows,settled,req){
+  const ph=$("#results .placeholder");if(ph)ph.remove();
+  const card=document.createElement("div");card.className="rescard";
+  let html=`<div class="meta"><span>⚖ 对比 ${rows.length} 个模型</span><span>${new Date().toLocaleTimeString()}</span></div>`;
+  html+=goldHTML();
+  html+=`<div style="overflow-x:auto"><div class="cmpgrid" style="grid-template-columns:150px repeat(${rows.length},minmax(215px,1fr))">`;
+  html+=`<div class="cmpcell cmphead">问题</div>`;
+  rows.forEach((w,i)=>{
+    const s=settled[i],p=PROVIDERS.find(x=>x.id===w.provider);
+    if(s.status==="fulfilled"){
+      bumpStats(s.value);
+      html+=`<div class="cmpcell cmphead"><b>${esc(p?p.name:w.provider)}</b><br><span style="font-family:Consolas,monospace">${esc(w.model||s.value.model)}</span><br><span class="hint">${s.value.latency_ms} ms · ${(s.value.usage&&s.value.usage.input_tokens)||0} input tok · ≈ $${(s.value.est_cost_usd||0).toFixed(6)}</span></div>`;
+    }else{
+      const msg=String((s.reason&&s.reason.message)||s.reason);
+      html+=`<div class="cmpcell cmphead" style="color:var(--err)">❌ ${esc(p?p.name:w.provider)}${w.model?` <span style="font-family:Consolas,monospace">${esc(w.model)}</span>`:""}<br><span style="font-size:11.5px">${esc(msg)}</span></div>`;
+    }
+  });
+  for(const q of req.questions){
+    html+=`<div class="cmpcell cmplab"><b>${esc(q.id)}</b> <span class="hint">${esc(q.type)}</span><br><span class="hint">${esc((q.instructions||"").slice(0,70))}${(q.instructions||"").length>70?"…":""}</span></div>`;
+    rows.forEach((w,i)=>{
+      const s=settled[i];
+      const a=s.status==="fulfilled"?(s.value.answers||{})[q.id]:undefined;
+      html+=`<div class="cmpcell">${a?answerHTML(q.id,a):'<span class="hint">—</span>'}</div>`;
+    });
+  }
+  html+=`</div></div>`;
+  rows.forEach((w,i)=>{
+    const s=settled[i];
+    const raw=s.status==="fulfilled"?s.value:{error:String((s.reason&&s.reason.message)||s.reason)};
+    html+=`<details style="margin-top:8px"><summary class="hint">${esc(w.provider)} · ${esc(w.model)} 原始响应</summary><pre>${esc(JSON.stringify(raw,null,1))}</pre></details>`;
+  });
+  card.innerHTML=html;
+  $("#results").prepend(card);
+}
+
 // ---------- 结果渲染 ----------
 let STATS={n:0,tok:0,cost:0};
-function renderResult(j,req){
+function bumpStats(j){
   STATS.n++;STATS.tok+=(j.usage&&j.usage.input_tokens)||0;STATS.cost+=(j.est_cost_usd||0);
   $("#stats").textContent=`${STATS.n} 次请求 · ${STATS.tok.toLocaleString()} tokens · $${STATS.cost.toFixed(6)}`;
+}
+function goldHTML(){
+  if(!(BANK.gold&&BANK.goldTask))return"";
+  const gs=Object.entries(BANK.gold).map(([k,v])=>typeof v==="boolean"?(v?k+" ✓":""):(k+" = "+v)).filter(Boolean).join(" · ");
+  return`<div class="gold">标准答案（${esc(BANK.goldTask)}）: <b>${esc(gs||"—")}</b> <span class="hint">— 若你在发送前改过题目，此答案可能不再适用</span></div>`;
+}
+function answerHTML(qid,a){ // 单题答案渲染（单发结果卡与对比网格共用）
+  let html="";
+  if("choice" in a){
+    html+=`<div class="ans">${esc(a.choice)} <small>（问题 ${esc(qid)}）</small></div>`;
+    const probs=Object.entries(a.probabilities||{}).sort((x,y)=>y[1]-x[1]);
+    const top=probs[0]&&probs[0][0];
+    for(const[k,v]of probs){
+      html+=`<div class="pbar${k===a.choice?" top":""}"><span>${esc(k)}${k===top?" ◁":""}</span><div class="track"><div class="fill" style="width:${Math.max(1,v*100)}%"></div></div><span class="pct">${(v*100).toFixed(1)}%</span></div>`;
+    }
+    html+=conf(a.confidence);
+  }else if("noul" in a){
+    const v=a.noul;
+    const reading=v>0.65?"倾向 是":v<0.35?"倾向 否":"≈0.5：五五开（注意：不是“中等程度”）";
+    html+=`<div class="ans">P(yes) = ${v.toFixed(2)} <small>（问题 ${esc(qid)} · ${reading}）</small></div>
+      <div class="noulbar"><div class="fill" style="width:${v*100}%"></div><div class="half"></div><div class="knob" style="left:${v*100}%"></div></div>
+      <div class="hint">0 ─ 0.5 ─ 1（虚线=0.5 阈值）</div>`;
+  }else if("score" in a){
+    const legend=a.legend||(a.probabilities?Object.keys(a.probabilities):[]);
+    const n=Math.max(legend.length-1,1),v=a.score;
+    html+=`<div class="ans">${(+v).toFixed(2)} <small>/ ${n}（问题 ${esc(qid)}）</small></div><div class="scale"><div class="rail"></div><div class="knob" style="left:${Math.min(Math.max(v/n,0),1)*100}%"></div>`;
+    legend.forEach((_,i)=>html+=`<span class="lv" style="left:${(i/n)*100}%">${i}</span>`);
+    html+=`</div>`;
+    const probs=Object.entries(a.probabilities||{});
+    probs.forEach(([k,p])=>{html+=`<div class="pbar"><span style="font-size:11px;color:var(--dim)" title="${esc(legend[k]||"")}">L${esc(k)}</span><div class="track"><div class="fill" style="width:${Math.max(1,p*100)}%"></div></div><span class="pct">${(p*100).toFixed(1)}%</span></div>`;});
+    html+=conf(a.confidence);
+    html+=`<details style="margin-top:6px"><summary class="hint">等级全文</summary><pre>${esc((legend||[]).map((l,i)=>`L${i}: ${l}`).join("\n"))}</pre></details>`;
+  }else if(a.type==="refusal"){
+    html+=`<div class="ans">⚠ 该问题被模型拒绝回答 <small>（问题 ${esc(qid)}）</small></div><pre>${esc(JSON.stringify(a,null,1))}</pre>`;
+  }else{
+    html+=`<pre>${esc(JSON.stringify(a,null,1))}</pre>`;
+  }
+  return html;
+}
+function renderResult(j,req){
+  bumpStats(j);
   const ph=$("#results .placeholder");if(ph)ph.remove();
   const card=document.createElement("div");card.className="rescard";
   const qs=req.questions.map(q=>q.id).join(", ");
   let html=`<div class="meta"><span>${esc(j.provider||"typesafe")}</span><span>模型 <b>${esc(j.model)}</b></span><span>${j.latency_ms} ms</span><span>${(j.usage&&j.usage.input_tokens)||0} input tok</span><span>≈ $${(j.est_cost_usd||0).toFixed(6)}</span><span>${new Date().toLocaleTimeString()}</span></div>`;
-  if(BANK.gold&&BANK.goldTask){
-    const gs=Object.entries(BANK.gold).map(([k,v])=>typeof v==="boolean"?(v?k+" ✓":""):(k+" = "+v)).filter(Boolean).join(" · ");
-    html+=`<div class="gold">标准答案（${esc(BANK.goldTask)}）: <b>${esc(gs||"—")}</b> <span class="hint">— 若你在发送前改过题目，此答案可能不再适用</span></div>`;
-  }
+  html+=goldHTML();
   for(const qid of Object.keys(j.answers)){
-    const a=j.answers[qid]||{};
-    html+=`<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px">`;
-    if("choice" in a){
-      html+=`<div class="ans">${esc(a.choice)} <small>（问题 ${esc(qid)}）</small></div>`;
-      const probs=Object.entries(a.probabilities||{}).sort((x,y)=>y[1]-x[1]);
-      const top=probs[0]&&probs[0][0];
-      for(const[k,v]of probs){
-        html+=`<div class="pbar${k===a.choice?" top":""}"><span>${esc(k)}${k===top?" ◁":""}</span><div class="track"><div class="fill" style="width:${Math.max(1,v*100)}%"></div></div><span class="pct">${(v*100).toFixed(1)}%</span></div>`;
-      }
-      html+=conf(a.confidence);
-    }else if("noul" in a){
-      const v=a.noul;
-      const reading=v>0.65?"倾向 是":v<0.35?"倾向 否":"≈0.5：五五开（注意：不是“中等程度”）";
-      html+=`<div class="ans">P(yes) = ${v.toFixed(2)} <small>（问题 ${esc(qid)} · ${reading}）</small></div>
-        <div class="noulbar"><div class="fill" style="width:${v*100}%"></div><div class="half"></div><div class="knob" style="left:${v*100}%"></div></div>
-        <div class="hint">0 ─ 0.5 ─ 1（虚线=0.5 阈值）</div>`;
-    }else if("score" in a){
-      const legend=a.legend||(a.probabilities?Object.keys(a.probabilities):[]);
-      const n=Math.max(legend.length-1,1),v=a.score;
-      html+=`<div class="ans">${(+v).toFixed(2)} <small>/ ${n}（问题 ${esc(qid)}）</small></div><div class="scale"><div class="rail"></div><div class="knob" style="left:${Math.min(Math.max(v/n,0),1)*100}%"></div>`;
-      legend.forEach((_,i)=>html+=`<span class="lv" style="left:${(i/n)*100}%">${i}</span>`);
-      html+=`</div>`;
-      const probs=Object.entries(a.probabilities||{});
-      probs.forEach(([k,p])=>{html+=`<div class="pbar"><span style="font-size:11px;color:var(--dim)" title="${esc(legend[k]||"")}">L${esc(k)}</span><div class="track"><div class="fill" style="width:${Math.max(1,p*100)}%"></div></div><span class="pct">${(p*100).toFixed(1)}%</span></div>`;});
-      html+=conf(a.confidence);
-      html+=`<details style="margin-top:6px"><summary class="hint">等级全文</summary><pre>${esc((legend||[]).map((l,i)=>`L${i}: ${l}`).join("\n"))}</pre></details>`;
-    }else if(a.type==="refusal"){
-      html+=`<div class="ans">⚠ 该问题被模型拒绝回答 <small>（问题 ${esc(qid)}）</small></div><pre>${esc(JSON.stringify(a,null,1))}</pre>`;
-    }else{
-      html+=`<pre>${esc(JSON.stringify(a,null,1))}</pre>`;
-    }
-    html+=`</div>`;
+    html+=`<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px">${answerHTML(qid,j.answers[qid]||{})}</div>`;
   }
   html+=`<details style="margin-top:12px"><summary class="hint">本次请求 JSON（问题：${esc(qs)}）</summary><pre>${esc(JSON.stringify({state:req.state,questions:req.questions},null,1))}</pre></details>`;
   html+=`<details style="margin-top:4px"><summary class="hint">原始响应 JSON</summary><pre>${esc(JSON.stringify(j,null,1))}</pre></details>`;

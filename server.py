@@ -413,14 +413,18 @@ _TASKS = None
 _tasks_lock = threading.Lock()
 
 
+_log_lock = threading.Lock()  # 对比模式会并发打 /api/ask，锁住日志行追加
+
+
 def _log_line(s: str):
     line = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {s}"
-    print(line, file=sys.stderr)
-    try:
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(line + "\n")
-    except OSError:
-        pass
+    with _log_lock:
+        print(line, file=sys.stderr)
+        try:
+            with open(LOG_FILE, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+        except OSError:
+            pass
 
 
 def harness_tasks():
