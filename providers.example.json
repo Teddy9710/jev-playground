@@ -15,12 +15,29 @@
       "key_env": "OPENAI_API_KEY"
     },
     {
+      "id": "openrouter",
+      "name": "OpenRouter Decisions（microsoft-decision-1 / jev）",
+      "kind": "compatible",
+      "url": "https://openrouter.ai/api/alpha/decisions",
+      "model_default": "microsoft/microsoft-decision-1",
+      "key_env": "OPENROUTER_API_KEY"
+    },
+    {
       "id": "intern",
       "name": "Intern-Decision（本机自部署）",
       "kind": "compatible",
       "url": "http://127.0.0.1:7860/v1/jev",
       "model_default": "intern-decision-2b",
       "key_env": ""
+    },
+    {
+      "id": "azure-foundry",
+      "name": "Azure Foundry 直连（Microsoft-Decision-1，需自建 deployment）",
+      "kind": "compatible",
+      "auth": "api-key",
+      "url": "https://<你的资源端点>/providers/microsoft/v1/systemone",
+      "model_default": "<deployment名>",
+      "key_env": "AZURE_API_KEY"
     }
   ]
 }

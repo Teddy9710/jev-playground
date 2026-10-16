@@ -310,7 +310,7 @@ async function loadTasks(){
 }
 window.loadTasks=loadTasks;
 loadTasks();
-$("#pgver").textContent="页面版本 2026-10-16 11:05";
+$("#pgver").textContent="页面版本 2026-10-16 11:30";
 window.addEventListener("error",e=>{const b=$("#errbox");b.textContent="页面脚本错误: "+e.message+"（"+(e.filename||"")+":"+e.lineno+"）";b.style.display="block";});
 window.addEventListener("unhandledrejection",e=>{const b=$("#errbox");b.textContent="异步请求错误: "+((e.reason&&e.reason.message)||e.reason);b.style.display="block";});
 async function bankPick(next){

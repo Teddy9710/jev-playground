@@ -153,6 +153,9 @@ DEFAULT_PROVIDERS = {"providers": [
     {"id": "typesafe", "name": "TypeSafe Jev（官方 API）", "kind": "typesafe", "model_default": "jev-latest"},
     {"id": "openai", "name": "OpenAI Decisions（gpt-6-luna）", "kind": "openai",
      "url": "https://api.openai.com/v1/decisions", "model_default": "gpt-6-luna", "key_env": "OPENAI_API_KEY"},
+    {"id": "openrouter", "name": "OpenRouter Decisions（microsoft-decision-1 / jev）", "kind": "compatible",
+     "url": "https://openrouter.ai/api/alpha/decisions", "model_default": "microsoft/microsoft-decision-1",
+     "key_env": "OPENROUTER_API_KEY"},
     {"id": "jev-compatible", "name": "Jev 兼容端点（改 providers.json 的 url）", "kind": "compatible",
      "url": "http://127.0.0.1:7860/v1/jev", "model_default": "intern-decision-2b", "key_env": ""},
 ]}
@@ -190,17 +193,36 @@ def load_providers() -> dict:
         return {p["id"]: p for p in DEFAULT_PROVIDERS["providers"]}
 
 
-def ask_compatible(url: str, key: str, model: str, state, questions_raw: dict, timeout: float = 60.0) -> dict:
+def _normalize_compatible_answers(answers: dict, questions_raw: dict) -> dict:
+    """兼容端点 answers → 前端期望形状（纯函数）。唯一已知差异：OpenRouter 的
+    score legend 回传是 {"0": "...", "1": ...} 对象而前端要数组 —— 以本地 criteria
+    为权威重建（同 OpenAI 适配器思路）；legend 已是数组（如 Intern-Decision）不动。
+    """
+    out = {}
+    for qid, a in answers.items():
+        if isinstance(a, dict) and a.get("type") == "score" and not isinstance(a.get("legend"), list):
+            q = questions_raw.get(qid) or {}
+            a = {**a, "legend": list(q.get("criteria") or [])}
+        out[qid] = a
+    return out
+
+
+def ask_compatible(url: str, key: str, model: str, state, questions_raw: dict,
+                   timeout: float = 60.0, auth: str = "bearer") -> dict:
     """裸 HTTP 调 Jev 契约兼容端点（SDK 的路径硬拼 /v1/systemone，指不过去，所以自己发）。
 
     本地自部署服务通常不需要 key —— 仅在 key 非空时带 Authorization。
+    auth="api-key" 时改发 `api-key` 头（Azure Foundry 的 key 认证不用 Bearer）。
     """
     body = {"state": state, "model": model, "questions": questions_raw}
     r = urllib.request.Request(
         url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
         headers={"Content-Type": "application/json", "Accept": "application/json"})
     if key:
-        r.add_header("Authorization", f"Bearer {key}")
+        if auth == "api-key":
+            r.add_header("api-key", key)
+        else:
+            r.add_header("Authorization", f"Bearer {key}")
     try:
         with urllib.request.urlopen(r, timeout=timeout) as resp:
             payload = json.loads(resp.read().decode("utf-8") or "{}")
@@ -215,7 +237,9 @@ def ask_compatible(url: str, key: str, model: str, state, questions_raw: dict, t
         raise Bad(f"连不上端点 {url}（服务没起来？）：{e.reason}")
     if not isinstance(payload, dict) or not isinstance(payload.get("answers"), dict):
         raise Bad(f"端点返回不是 Jev 契约形状（缺 answers 字段）：{str(payload)[:150]}")
-    return {"model": payload.get("model") or model, "answers": payload["answers"], "usage": payload.get("usage") or {}}
+    return {"model": payload.get("model") or model,
+            "answers": _normalize_compatible_answers(payload["answers"], questions_raw),
+            "usage": payload.get("usage") or {}}
 
 
 # ---------------- OpenAI Decisions API（gpt-6-luna）适配 ----------------
@@ -492,14 +516,18 @@ def do_ask(req: dict) -> tuple[int, dict]:
         key = str(req.get("key") or "").strip()
         if not key and prov.get("key_env"):
             key = os.environ.get(str(prov["key_env"]), "")
+            if not key:
+                return 400, {"ok": False, "error": f"没有 API key：设置环境变量 {prov['key_env']}，或在页面右上角输入（只存你的浏览器）。"}
         try:
-            result = ask_compatible(url, key, model, state, raw)
+            result = ask_compatible(url, key, model, state, raw, auth=str(prov.get("auth") or "bearer"))
         except Bad as e:
             return 400, {"ok": False, "error": str(e)}
+        # 自部署端点不计价；托管兼容端点（如 OpenRouter）回真实 usage.cost 就直接用
+        real_cost = float((result["usage"] or {}).get("cost") or 0.0)
         return 200, {
             "ok": True, "provider": provider_id, "model": result["model"],
             "latency_ms": round((time.monotonic() - t0) * 1000),
-            "usage": result["usage"], "est_cost_usd": 0.0,  # 自部署/兼容端点不计价
+            "usage": result["usage"], "est_cost_usd": round(real_cost, 6) if real_cost > 0 else 0.0,
             "answers": result["answers"],
         }
 
