@@ -38,6 +38,16 @@
       "url": "https://<你的资源端点>/providers/microsoft/v1/systemone",
       "model_default": "<deployment名>",
       "key_env": "AZURE_API_KEY"
+    },
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare Clef 直连（clef，$0.24/MTok）",
+      "kind": "compatible",
+      "url": "https://api.cloudflare.com/client/v4/accounts/<你的AccountID>/ai/run/@cf/cloudflare/clef",
+      "model_default": "clef",
+      "key_env": "CLOUDFLARE_AUTH_TOKEN",
+      "unwrap": "result",
+      "price_in_mtok": 0.24
     }
   ]
 }

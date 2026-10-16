@@ -208,11 +208,13 @@ def _normalize_compatible_answers(answers: dict, questions_raw: dict) -> dict:
 
 
 def ask_compatible(url: str, key: str, model: str, state, questions_raw: dict,
-                   timeout: float = 60.0, auth: str = "bearer") -> dict:
+                   timeout: float = 60.0, auth: str = "bearer", unwrap: str = "") -> dict:
     """裸 HTTP 调 Jev 契约兼容端点（SDK 的路径硬拼 /v1/systemone，指不过去，所以自己发）。
 
     本地自部署服务通常不需要 key —— 仅在 key 非空时带 Authorization。
     auth="api-key" 时改发 `api-key` 头（Azure Foundry 的 key 认证不用 Bearer）。
+    unwrap="result" 时下钻 Cloudflare v4 信封 {"success","errors","result"}（Workers AI
+    直连把模型响应包在 result 里；success:false 或 errors 非空 → 友好报错）。
     """
     body = {"state": state, "model": model, "questions": questions_raw}
     r = urllib.request.Request(
@@ -235,6 +237,12 @@ def ask_compatible(url: str, key: str, model: str, state, questions_raw: dict,
         raise Bad(f"端点返回 HTTP {e.code}：{detail or e.reason}")
     except urllib.error.URLError as e:
         raise Bad(f"连不上端点 {url}（服务没起来？）：{e.reason}")
+    if unwrap and isinstance(payload, dict):
+        errs = payload.get("errors")
+        if payload.get("success") is False or (isinstance(errs, list) and errs):
+            raise Bad(f"端点返回错误：{str(errs)[:200]}")
+        if unwrap in payload:
+            payload = payload.get(unwrap) or {}
     if not isinstance(payload, dict) or not isinstance(payload.get("answers"), dict):
         raise Bad(f"端点返回不是 Jev 契约形状（缺 answers 字段）：{str(payload)[:150]}")
     return {"model": payload.get("model") or model,
@@ -525,15 +533,20 @@ def do_ask(req: dict) -> tuple[int, dict]:
             if not key:
                 return 400, {"ok": False, "error": f"没有 API key：设置环境变量 {prov['key_env']}，或在页面右上角输入（只存你的浏览器）。"}
         try:
-            result = ask_compatible(url, key, model, state, raw, auth=str(prov.get("auth") or "bearer"))
+            result = ask_compatible(url, key, model, state, raw, auth=str(prov.get("auth") or "bearer"),
+                                    unwrap=str(prov.get("unwrap") or ""))
         except Bad as e:
             return 400, {"ok": False, "error": str(e)}
-        # 自部署端点不计价；托管兼容端点（如 OpenRouter）回真实 usage.cost 就直接用
-        real_cost = float((result["usage"] or {}).get("cost") or 0.0)
+        # 自部署端点不计价；托管兼容端点（如 OpenRouter）回真实 usage.cost 就直接用；
+        # 否则 provider 配了 price_in_mtok（如 Cloudflare Workers AI）就按 token 估算
+        u = result["usage"] or {}
+        est = float(u.get("cost") or 0.0)
+        if est <= 0 and prov.get("price_in_mtok"):
+            est = int(u.get("input_tokens") or u.get("prompt_tokens") or 0) / 1e6 * float(prov["price_in_mtok"])
         return 200, {
             "ok": True, "provider": provider_id, "model": result["model"],
             "latency_ms": round((time.monotonic() - t0) * 1000),
-            "usage": result["usage"], "est_cost_usd": round(real_cost, 6) if real_cost > 0 else 0.0,
+            "usage": result["usage"], "est_cost_usd": round(est, 6) if est > 0 else 0.0,
             "answers": result["answers"],
         }
 
