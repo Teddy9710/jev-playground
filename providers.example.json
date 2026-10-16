@@ -7,6 +7,14 @@
       "model_default": "jev-latest"
     },
     {
+      "id": "openai",
+      "name": "OpenAI Decisions（gpt-6-luna）",
+      "kind": "openai",
+      "url": "https://api.openai.com/v1/decisions",
+      "model_default": "gpt-6-luna",
+      "key_env": "OPENAI_API_KEY"
+    },
+    {
       "id": "intern",
       "name": "Intern-Decision（本机自部署）",
       "kind": "compatible",

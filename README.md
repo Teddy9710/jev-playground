@@ -43,9 +43,10 @@ Beyond the 40 benchmark tasks you can bring your own questions, stored as plain 
 The header dropdown picks the backend for 发送:
 
 - **TypeSafe Jev（官方 API）** — the original path via `typesafe_sdk`.
+- **OpenAI Decisions（gpt-6-luna）** — OpenAI's Decisions API (`POST /v1/decisions`, public beta since Oct 6 2026). Needs `OPENAI_API_KEY` (env var, or paste in the page). Priced at **$0.10/MTok input-only** (~2.4× Jev). The adapter translates both ways: `noul`→`predicate`, choice criteria dict→`choices` array, score level texts→`levels`. Note OpenAI's score is a probability-weighted float that can fall *between* two levels (the frontend renders that fine); a question the model declines becomes a `refusal` answer shown inline.
 - **Jev 兼容端点** — any self-hosted service speaking the Jev HTTP contract (`POST {state, model, questions}` → `{model, answers, usage}`), e.g. [Intern-Decision](https://github.com/intern_lm/Intern-Decision) via `bash scripts/demo.sh` on `http://127.0.0.1:7860/v1/jev`.
 
-Endpoints are configured in `providers.json` (auto-created on first run, hot-reloaded — edit it without restarting; `providers.example.json` shows the schema). Per provider: `id`, `kind` (`typesafe`/`compatible`), `url`, `model_default`, and optional `key_env` (name of an env var holding the API key — the file itself must never contain key values; for the official provider the page input takes precedence, then `TYPESAFE_API_KEY`). Compatible endpoints need no key by default — the `Authorization` header is only sent when a key resolves.
+Endpoints are configured in `providers.json` (auto-created on first run, hot-reloaded — edit it without restarting; `providers.example.json` shows the schema). Per provider: `id`, `kind` (`typesafe`/`openai`/`compatible`), `url`, `model_default`, and optional `key_env` (name of an env var holding the API key — the file itself must never contain key values; key precedence: page input, then the `key_env` variable). Compatible endpoints need no key by default — the `Authorization` header is only sent when a key resolves.
 
 ## Built-in templates
 
@@ -123,9 +124,10 @@ key 在 <https://console.typesafe.ai> 创建。计价：**输入 $0.042/MTok，�
 顶栏下拉框选择「发送」调用的后端：
 
 - **TypeSafe Jev（官方 API）** — 原路径，走 `typesafe_sdk`。
+- **OpenAI Decisions（gpt-6-luna）** — OpenAI 的 Decisions API（`POST /v1/decisions`，2026-10-06 起公测）。需要 `OPENAI_API_KEY`（环境变量，或页面输入）。计价 **$0.10/MTok 仅输入**（约为 Jev 的 2.4 倍）。适配器做双向翻译：`noul`→`predicate`、choice criteria 字典→`choices` 数组、score 等级文本→`levels`。注意 OpenAI 的 score 是概率加权浮点，可能落在**两级之间**（前端能正常渲染）；模型拒答的题目会以 `refusal` 答案就地显示。
 - **Jev 兼容端点** — 任何说 Jev HTTP 契约（`POST {state, model, questions}` → `{model, answers, usage}`）的自部署服务，例如 [Intern-Decision](https://github.com/intern_lm/Intern-Decision)：`bash scripts/demo.sh` 后填 `http://127.0.0.1:7860/v1/jev`。
 
-端点配置在 `providers.json`（首跑自动生成，热重载——改完不用重启；`providers.example.json` 是格式示例）。每个 provider：`id`、`kind`（`typesafe`/`compatible`）、`url`、`model_default`、可选 `key_env`（存 API key 的**环境变量名**——文件里绝不放 key 本身；官方 provider 的 key 优先级：页面输入 > `TYPESAFE_API_KEY`）。兼容端点默认无需 key——只有解析到 key 时才发 `Authorization` 头。
+端点配置在 `providers.json`（首跑自动生成，热重载——改完不用重启；`providers.example.json` 是格式示例）。每个 provider：`id`、`kind`（`typesafe`/`openai`/`compatible`）、`url`、`model_default`、可选 `key_env`（存 API key 的**环境变量名**——文件里绝不放 key 本身；key 优先级：页面输入 > key_env 指定的环境变量）。兼容端点默认无需 key——只有解析到 key 时才发 `Authorization` 头。
 
 ## 内置模板
 

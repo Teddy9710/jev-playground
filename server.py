@@ -151,6 +151,8 @@ def friendly_error(e: Exception) -> tuple[int, str]:
 # ---------------- 决策模型提供方（可插拔适配层） ----------------
 DEFAULT_PROVIDERS = {"providers": [
     {"id": "typesafe", "name": "TypeSafe Jev（官方 API）", "kind": "typesafe", "model_default": "jev-latest"},
+    {"id": "openai", "name": "OpenAI Decisions（gpt-6-luna）", "kind": "openai",
+     "url": "https://api.openai.com/v1/decisions", "model_default": "gpt-6-luna", "key_env": "OPENAI_API_KEY"},
     {"id": "jev-compatible", "name": "Jev 兼容端点（改 providers.json 的 url）", "kind": "compatible",
      "url": "http://127.0.0.1:7860/v1/jev", "model_default": "intern-decision-2b", "key_env": ""},
 ]}
@@ -168,9 +170,9 @@ def load_providers() -> dict:
         provs = {}
         for p in data.get("providers") or []:
             pid, kind = str(p.get("id") or "").strip(), str(p.get("kind") or "").strip()
-            if not pid or pid in provs or kind not in ("typesafe", "compatible"):
+            if not pid or pid in provs or kind not in ("typesafe", "compatible", "openai"):
                 continue
-            if kind == "compatible" and not str(p.get("url") or "").strip():
+            if kind in ("compatible", "openai") and not str(p.get("url") or "").strip():
                 continue
             provs[pid] = p
         if "typesafe" not in provs:
@@ -214,6 +216,98 @@ def ask_compatible(url: str, key: str, model: str, state, questions_raw: dict, t
     if not isinstance(payload, dict) or not isinstance(payload.get("answers"), dict):
         raise Bad(f"端点返回不是 Jev 契约形状（缺 answers 字段）：{str(payload)[:150]}")
     return {"model": payload.get("model") or model, "answers": payload["answers"], "usage": payload.get("usage") or {}}
+
+
+# ---------------- OpenAI Decisions API（gpt-6-luna）适配 ----------------
+OPENAI_USD_PER_MTOK = 0.10  # 官方计价：仅输入 token 计费
+
+
+def _openai_request(state, questions_raw: dict, model: str) -> dict:
+    """Jev raw 问题 → OpenAI Decisions 请求体（契约映射，纯函数便于直测）。
+
+    差异：input 是文本（state 序列化注入）；noul→predicate（判据折进 instructions）；
+    choice criteria 字典 → choices 数组；score criteria 等级文本 → levels 数组。
+    """
+    text = state if isinstance(state, str) else json.dumps(state, ensure_ascii=False, indent=2)
+    questions = []
+    for qid, q in questions_raw.items():
+        t, instr = q.get("type"), q.get("instructions")
+        if t == "choice":
+            item = {"type": "choice", "name": qid, "instructions": instr,
+                    "choices": [{"value": k, **({"description": d} if d else {})}
+                                for k, d in (q.get("criteria") or {}).items()]}
+        elif t == "score":
+            item = {"type": "score", "name": qid, "instructions": instr,
+                    "levels": [{"label": str(i), "description": lv}
+                               for i, lv in enumerate(q.get("criteria") or [])]}
+        else:  # noul → predicate（predicate 没有 criteria 字段，判据折进 instructions）
+            crit = q.get("criteria") or {}
+            parts = [instr]
+            if crit.get("true"):
+                parts.append(f"Condition is true when: {crit['true']}")
+            if crit.get("false"):
+                parts.append(f"Condition is false when: {crit['false']}")
+            item = {"type": "predicate", "name": qid, "instructions": "\n".join(parts)}
+        questions.append(item)
+    return {"model": model, "input": text, "questions": questions}
+
+
+def _openai_normalize(payload: dict, questions_raw: dict) -> dict:
+    """OpenAI answers 数组 → 统一 Jev 形状 {id: {...}}（纯函数）。legend 以本地 criteria 为权威。"""
+    answers = {}
+    for a in payload.get("answers") or []:
+        qid, t = a.get("name"), a.get("type")
+        if not qid:
+            continue
+        if t == "predicate":
+            answers[qid] = {"type": "noul", "noul": float(a.get("probability") or 0.0)}
+        elif t == "choice":
+            answers[qid] = {"type": "choice", "choice": a.get("choice"),
+                            "probabilities": {str(p.get("value")): float(p.get("probability") or 0.0)
+                                              for p in a.get("probabilities") or []}}
+            if a.get("confidence") is not None:
+                answers[qid]["confidence"] = a["confidence"]
+        elif t == "score":
+            levels = (questions_raw.get(qid) or {}).get("criteria") or []
+            answers[qid] = {"type": "score", "score": a.get("score"),
+                            "probabilities": {str(p.get("value")): float(p.get("probability") or 0.0)
+                                              for p in a.get("probabilities") or []},
+                            "legend": list(levels)}
+            if a.get("confidence") is not None:
+                answers[qid]["confidence"] = a["confidence"]
+        else:  # refusal 等未知类型原样透传（前端显示拒绝提示 + raw JSON）
+            answers[qid] = {"type": t or "unknown",
+                            **{k: v for k, v in a.items() if k not in ("type", "name")}}
+    return {"model": payload.get("model") or "gpt-6-luna", "answers": answers,
+            "usage": payload.get("usage") or {}}
+
+
+def ask_openai(url: str, key: str, model: str, state, questions_raw: dict, timeout: float = 60.0) -> dict:
+    """调 OpenAI Decisions API（/v1/decisions，契约与 Jev 不同，这里做双向映射）。"""
+    body = _openai_request(state, questions_raw, model)
+    r = urllib.request.Request(
+        url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"), method="POST",
+        headers={"Content-Type": "application/json", "Accept": "application/json",
+                 "Authorization": f"Bearer {key}"})
+    try:
+        with urllib.request.urlopen(r, timeout=timeout) as resp:
+            payload = json.loads(resp.read().decode("utf-8") or "{}")
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8", "replace")[:200]
+        except Exception:  # noqa: BLE001
+            pass
+        if e.code == 401:
+            raise Bad(f"OpenAI key 无效（HTTP 401）。{detail}")
+        if e.code == 429:
+            raise Bad(f"触发限流（HTTP 429），稍等重试。{detail}")
+        raise Bad(f"OpenAI 返回 HTTP {e.code}：{detail or e.reason}")
+    except urllib.error.URLError as e:
+        raise Bad(f"连不上 OpenAI 端点 {url}：{e.reason}")
+    if not isinstance(payload, dict) or not isinstance(payload.get("answers"), list):
+        raise Bad(f"端点返回不是 Decisions 契约形状（缺 answers 数组）：{str(payload)[:150]}")
+    return _openai_normalize(payload, questions_raw)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -406,6 +500,25 @@ def do_ask(req: dict) -> tuple[int, dict]:
             "ok": True, "provider": provider_id, "model": result["model"],
             "latency_ms": round((time.monotonic() - t0) * 1000),
             "usage": result["usage"], "est_cost_usd": 0.0,  # 自部署/兼容端点不计价
+            "answers": result["answers"],
+        }
+
+    # OpenAI Decisions API（gpt-6-luna），$0.10/MTok 仅输入
+    if prov.get("kind") == "openai":
+        url = str(prov.get("url") or "").strip() or "https://api.openai.com/v1/decisions"
+        env_name = str(prov.get("key_env") or "OPENAI_API_KEY")
+        key = str(req.get("key") or "").strip() or os.environ.get(env_name, "")
+        if not key:
+            return 400, {"ok": False, "error": f"没有 API key：设置环境变量 {env_name}，或在页面右上角输入（只存你的浏览器）。"}
+        try:
+            result = ask_openai(url, key, model, state, raw)
+        except Bad as e:
+            return 400, {"ok": False, "error": str(e)}
+        in_tok = int(result["usage"].get("input_tokens") or 0)
+        return 200, {
+            "ok": True, "provider": provider_id, "model": result["model"],
+            "latency_ms": round((time.monotonic() - t0) * 1000),
+            "usage": result["usage"], "est_cost_usd": round(in_tok / 1e6 * OPENAI_USD_PER_MTOK, 6),
             "answers": result["answers"],
         }
 
