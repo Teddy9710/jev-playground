@@ -367,7 +367,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, {"ok": True, "models": [
                 {"id": p["id"], "name": p.get("name") or p["id"], "kind": p.get("kind"),
                  "model_default": p.get("model_default") or "",
-                 "needs_key": p.get("kind") == "typesafe" or bool(p.get("key_env"))}
+                 "needs_key": p.get("kind") == "typesafe" or bool(p.get("key_env")),
+                 "key_env": p.get("key_env") or "",
+                 "env_key": bool(p.get("key_env") and os.environ.get(str(p["key_env"])))}  # 只报存在性，不回传内容
                 for p in provs.values()]})
         elif path == "/api/tasks":
             tasks, harness_ok = [], True

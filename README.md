@@ -13,16 +13,11 @@ double-click start.bat        (auto-restarts if the server crashes)
 
 Then open <http://127.0.0.1:8770>. No JS framework, no CDN, fully offline frontend.
 
-## API key (pick one)
+## API key
 
-1. **Recommended** — set the env var before starting:
-   ```
-   set TYPESAFE_API_KEY=tsk-...      (cmd)
-   $env:TYPESAFE_API_KEY="tsk-..."   (PowerShell)
-   ```
-2. Or paste it into the box at the top-right of the page (stored only in your browser's localStorage; the server forwards it in memory and never writes it to disk or logs).
+Click **🔑 Key** in the header to open the key panel: **one key per provider** (TypeSafe / OpenAI / OpenRouter / …), stored only in your browser's localStorage and forwarded in memory by the local server — never written to disk or logs. Precedence: **page key > the provider's env var** (`TYPESAFE_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, …); the panel's status dot shows whether an env var is already set. Compare mode automatically sends each contender row its own provider's key. Keys from the old single-key box are migrated to the provider you had selected.
 
-Create keys at <https://console.typesafe.ai>. Pricing: **$0.042 / MTok input, output free** — a typical request costs ≈ $0.0001. The page shows per-request tokens & estimated cost, plus a session counter you can reconcile against the console usage page.
+Create keys at <https://console.typesafe.ai> / <https://platform.openai.com> / <https://openrouter.ai/keys>. Pricing: **$0.042 / MTok input, output free** (Jev & Microsoft-Decision-1; OpenAI is $0.10) — a typical request costs ≈ $0.0001. The page shows per-request tokens & estimated cost, plus a session counter you can reconcile against the console usage page.
 
 ## Question bank (zero-click)
 
@@ -51,7 +46,7 @@ Endpoints are configured in `providers.json` (auto-created on first run, hot-rel
 
 ## Model comparison
 
-The **⚖ 对比** button in the header switches to compare mode: the provider/model/key controls hide and a contender list appears — each row is *provider + model name* (so you can also pit two models of the same endpoint against each other, e.g. `microsoft/microsoft-decision-1` vs `typesafe/jev-1.13` on OpenRouter). 发送 fires the same questions at every checked row in parallel and renders one grid with **questions as rows, models as columns**: answers, probability bars, latency, tokens and cost side by side; a model that errors gets a red ❌ column with the message instead of breaking the others. Keys are taken **only from each endpoint's env var** in compare mode (one page key can't be valid for several endpoints); each model is billed separately — the session counter reflects that.
+The **⚖ 对比** button in the header switches to compare mode: the provider/model/key controls hide and a contender list appears — each row is *provider + model name* (so you can also pit two models of the same endpoint against each other, e.g. `microsoft/microsoft-decision-1` vs `typesafe/jev-1.13` on OpenRouter). 发送 fires the same questions at every checked row in parallel and renders one grid with **questions as rows, models as columns**: answers, probability bars, latency, tokens and cost side by side; a model that errors gets a red ❌ column with the message instead of breaking the others. Each row automatically carries its own provider's key from the 🔑 panel (falling back to that endpoint's env var); each model is billed separately — the session counter reflects that.
 
 ## Built-in templates
 
@@ -99,16 +94,11 @@ Questions in one request are judged **independently, in parallel** (fan-out) —
 
 浏览器打开 <http://127.0.0.1:8770>。前端零框架、零 CDN，完全离线可用。
 
-## API Key（二选一）
+## API Key
 
-1. **推荐** — 启动前设环境变量：
-   ```
-   set TYPESAFE_API_KEY=tsk-...      （cmd）
-   $env:TYPESAFE_API_KEY="tsk-..."   （PowerShell）
-   ```
-2. 或直接在页面右上角输入框粘贴（只存在你的浏览器 localStorage；服务器仅在内存中转发，绝不落盘、绝不写日志）。
+点顶栏 **🔑 Key** 打开 key 配置面板：**每个 provider 一把 key**（TypeSafe / OpenAI / OpenRouter / …），只存在你的浏览器 localStorage，由本地服务内存转发——绝不落盘、绝不写日志。优先级：**页面配置 > 该端点的环境变量**（`TYPESAFE_API_KEY`、`OPENAI_API_KEY`、`OPENROUTER_API_KEY`…）；面板里的状态点会显示环境变量是否已设置。对比模式自动给每个选手行带各自 provider 的 key。旧版单一 key 输入框里的值会自动迁移到你当时选中的 provider。
 
-key 在 <https://console.typesafe.ai> 创建。计价：**输入 $0.042/MTok，输出免费**，一次典型请求 ≈ $0.0001。页面会显示每次请求的 token 数和估算费用，并有会话累计，可与 console 用量页对账。
+key 在 <https://console.typesafe.ai> / <https://platform.openai.com> / <https://openrouter.ai/keys> 创建。计价：**输入 $0.042/MTok，输出免费**（Jev 与 Microsoft-Decision-1 同价；OpenAI 为 $0.10），一次典型请求 ≈ $0.0001。页面会显示每次请求的 token 数和估算费用，并有会话累计，可与 console 用量页对账。
 
 ## 题库选题（零点击）
 
@@ -137,7 +127,7 @@ key 在 <https://console.typesafe.ai> 创建。计价：**输入 $0.042/MTok，�
 
 ## 模型对比
 
-顶栏 **⚖ 对比** 按钮切换对比模式：provider/模型/key 控件隐藏，出现选手列表——每行是 *provider + 模型名*（因此也能比同端点的两个模型，比如 OpenRouter 上的 `microsoft/microsoft-decision-1` 对 `typesafe/jev-1.13`）。「发送」把同一题目并行发给所有勾选行，渲染成**问题为行、模型为列**的网格：答案、概率条、延迟、token、费用并排；某个模型出错只显示红色 ❌ 列和错误信息，不影响其余列。对比模式 key **只从各端点的环境变量取**（单一页面 key 不可能同时合法发往多个端点）；每个模型各计一次费，会话累计如实相加。
+顶栏 **⚖ 对比** 按钮切换对比模式：provider/模型/key 控件隐藏，出现选手列表——每行是 *provider + 模型名*（因此也能比同端点的两个模型，比如 OpenRouter 上的 `microsoft/microsoft-decision-1` 对 `typesafe/jev-1.13`）。「发送」把同一题目并行发给所有勾选行，渲染成**问题为行、模型为列**的网格：答案、概率条、延迟、token、费用并排；某个模型出错只显示红色 ❌ 列和错误信息，不影响其余列。每行自动带上各自 provider 在 🔑 面板配置的 key（没有则落回该端点的环境变量）；每个模型各计一次费，会话累计如实相加。
 
 ## 内置模板
 

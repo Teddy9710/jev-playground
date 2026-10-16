@@ -72,6 +72,11 @@
   .hint{color:var(--dim);font-size:12px}
   .placeholder{color:var(--dim);text-align:center;padding:50px 10px;border:1px dashed var(--line);border-radius:10px}
   .ghost.on{border-style:solid;border-color:var(--accent);color:var(--accent)}
+  .keyrow{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .keyrow .kd{width:9px;height:9px;border-radius:50%;background:var(--err);flex:none}
+  .keyrow .kd.on{background:var(--ok)}
+  .keyrow .kname{flex:none;width:200px;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .keyrow .kenv{flex:none;font-size:11px;color:var(--dim);font-family:Consolas,monospace}
   .cmprow{display:flex;gap:6px;align-items:center;margin-bottom:6px}
   .cmpgrid{display:grid;min-width:fit-content;border-top:1px solid var(--line);border-left:1px solid var(--line)}
   .cmpcell{padding:9px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-size:12.5px;min-width:0}
@@ -85,11 +90,9 @@
   <div class="spacer"></div>
   <select id="provider" title="决策模型提供方（providers.json 可加）" style="width:210px"></select>
   <input id="model" value="jev-latest" title="模型名" style="width:120px;font-family:Consolas,monospace">
-  <div class="keywrap">
-    <span id="keydot" title="API key 状态"></span>
-    <input id="key" type="password" placeholder="TYPESAFE_API_KEY（存本浏览器）" style="width:230px">
-  </div>
-  <button id="cmpbtn" class="ghost" title="多模型并排对比同一题目（对比模式下 key 只从各端点的环境变量取）" style="flex:none">⚖ 对比</button>
+  <span id="keydot" title="API key 状态"></span>
+  <button id="keybtn" class="ghost" title="按 provider 配置 API key（只存本浏览器）" style="flex:none">🔑 Key</button>
+  <button id="cmpbtn" class="ghost" title="多模型并排对比同一题目" style="flex:none">⚖ 对比</button>
 </header>
 
 <main>
@@ -127,7 +130,7 @@
     </div>
     <div class="card" id="comparebox" style="display:none">
       <h3>对比模式 <button class="addbtn" id="cmpadd">＋ 添加选手</button></h3>
-      <div class="hint" style="margin:0 0 8px">勾选要一起发送的模型，每行 = provider + 模型名（可比同端点的不同模型，如 OpenRouter 上的 microsoft-decision-1 与 typesafe/jev-1.13）。同一题发给全部勾选项，结果按「问题 × 模型」并排。<b>对比模式 key 只从各端点的环境变量取</b>（页面 key 框停用，避免把一个 key 发给多个端点）；每个模型各计一次费。</div>
+      <div class="hint" style="margin:0 0 8px">勾选要一起发送的模型，每行 = provider + 模型名（可比同端点的不同模型，如 OpenRouter 上的 microsoft-decision-1 与 typesafe/jev-1.13）。同一题发给全部勾选项，结果按「问题 × 模型」并排。key 按各行 provider 从 <b>🔑 Key 面板或环境变量</b>取（页面配置优先，顶栏圆点显示是否配齐）；每个模型各计一次费。</div>
       <div id="cmprows"></div>
     </div>
     <div id="errbox"></div>
@@ -141,6 +144,14 @@
     </div>
   </section>
 </main>
+
+<div id="keypanel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20;align-items:center;justify-content:center" onclick="if(event.target===this)closeKeyPanel()">
+  <div class="card" style="width:min(640px,92vw);max-height:82vh;overflow-y:auto;margin:0">
+    <h3>🔑 API Key 配置 <button class="ghost" style="float:right" onclick="closeKeyPanel()">✕ 关闭</button></h3>
+    <div class="hint" style="margin:0 0 10px">每个 provider 一把 key，<b>只存在你的浏览器 localStorage</b>；发送时经本地服务内存转发，绝不落盘、绝不写日志。优先级：<b>页面配置 &gt; 环境变量</b>（各行状态点会显示环境变量是否已设置）。对比模式下每行选手自动带各自 provider 的 key。</div>
+    <div id="keyrows"></div>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -209,14 +220,60 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 let nextLetter=n=>{const L="ABCDEFGHIJKLMNOPQRSTUVWXYZ";return n<26?L[n]:String.fromCharCode(65+Math.floor(n/26)-1)+String.fromCharCode(65+n%26)};
 let CUR=null; // 当前编辑态（不直接读 DOM，收集时再读）
 
-// ---------- key ----------
-const keyEl=$("#key");
-keyEl.value=localStorage.getItem("jev_key")||"";
-keyEl.addEventListener("change",()=>localStorage.setItem("jev_key",keyEl.value.trim()));
-fetch("/api/health").then(r=>r.json()).then(h=>{
-  if(h.key_env){$("#keydot").classList.add("on");$("#keydot").title="环境变量 TYPESAFE_API_KEY 已设置（页面输入可覆盖）";keyEl.placeholder="（环境变量已设置，可留空）";}
-  else $("#keydot").title="未检测到环境变量 key，请在此输入";
-}).catch(()=>{});
+// ---------- API key（按 provider 各一把，只存本浏览器 localStorage） ----------
+function pageKey(pid){return localStorage.getItem("jev_key_"+pid)||"";}
+(function(){ // 旧版单一 key 迁移到当时的 provider，迁移后删旧键
+  const old=(localStorage.getItem("jev_key")||"").trim();
+  if(old){
+    const pid=localStorage.getItem("jev_provider")||"typesafe";
+    if(!pageKey(pid))localStorage.setItem("jev_key_"+pid,old);
+    localStorage.removeItem("jev_key");
+  }
+})();
+function keyState(p){
+  if(pageKey(p.id))return{ok:true,title:"页面 key 已配置（优先于环境变量）"};
+  if(p.env_key)return{ok:true,title:"环境变量已设置（页面配置可覆盖）"};
+  return{ok:!p.needs_key,title:p.needs_key?"未配置 key：点右上角 🔑 Key 配置，或设环境变量":"该端点无需 key"};
+}
+function updateKeyDot(){
+  const dot=$("#keydot");let ok=false,txt="";
+  if(CMP_ON){
+    const checked=[...document.querySelectorAll("#cmprows .cmprow")].filter(r=>r.querySelector(".cmpon").checked);
+    const missing=checked.map(r=>PROVIDERS.find(x=>x.id===r.querySelector(".cmpprov").value))
+      .filter(p=>p&&p.needs_key&&!keyState(p).ok);
+    ok=checked.length>0&&!missing.length;
+    txt=!checked.length?"对比模式：至少勾选一个模型":ok?"对比模式：所有勾选端点都有 key":"缺 key："+missing.map(p=>p.name).join("、")+"（点 🔑 Key 配置）";
+  }else{
+    const p=PROVIDERS.find(x=>x.id===$("#provider").value)||PROVIDERS[0];
+    if(p){ok=keyState(p).ok;txt=keyState(p).title;}
+  }
+  dot.classList.toggle("on",ok);dot.title=txt;
+}
+function buildKeyRows(){
+  const box=$("#keyrows");box.innerHTML="";
+  PROVIDERS.forEach(p=>{
+    const st=keyState(p);
+    const d=document.createElement("div");d.className="keyrow";
+    d.innerHTML=`<span class="kd${st.ok?" on":""}" title="${esc(st.title)}"></span>
+      <span class="kname" title="${esc(p.name)}">${esc(p.name)}</span>
+      <span class="kenv">${p.key_env?esc(p.key_env):""}</span>
+      <input type="password" data-kp="${esc(p.id)}" placeholder="${p.needs_key?(p.env_key?"（环境变量已设置，可覆盖）":"粘贴 key（存本浏览器）"):"（该端点无需 key）"}" style="flex:1;min-width:120px">
+      <button class="xbtn" title="清除该 key">✕</button>`;
+    const inp=d.querySelector("input");
+    inp.value=pageKey(p.id);
+    inp.addEventListener("change",()=>{
+      if(inp.value.trim())localStorage.setItem("jev_key_"+p.id,inp.value.trim());
+      else localStorage.removeItem("jev_key_"+p.id);
+      buildKeyRows();updateKeyDot();
+    });
+    d.querySelector(".xbtn").onclick=()=>{localStorage.removeItem("jev_key_"+p.id);buildKeyRows();updateKeyDot();};
+    box.appendChild(d);
+  });
+}
+function openKeyPanel(){$("#keypanel").style.display="flex";buildKeyRows();}
+function closeKeyPanel(){$("#keypanel").style.display="none";}
+window.closeKeyPanel=closeKeyPanel; // 面板内联 onclick 用
+$("#keybtn").onclick=openKeyPanel;
 
 // ---------- 决策模型提供方 ----------
 let PROVIDERS=[];
@@ -224,8 +281,8 @@ function applyProvider(){
   const p=PROVIDERS.find(x=>x.id===$("#provider").value)||PROVIDERS[0];
   if(!p)return;
   if(p.model_default)$("#model").value=p.model_default;
-  keyEl.placeholder=p.needs_key?(p.kind==="typesafe"?"TYPESAFE_API_KEY（存本浏览器）":"该端点的 key（可选）"):"（该端点无需 key）";
   localStorage.setItem("jev_provider",$("#provider").value);
+  updateKeyDot();
 }
 fetch("/api/models").then(r=>r.json()).then(j=>{
   if(!j.ok)return;
@@ -236,6 +293,7 @@ fetch("/api/models").then(r=>r.json()).then(j=>{
   if(cur&&j.models.some(p=>p.id===cur))sel.value=cur;
   applyProvider();
   if(CMP_ON&&!$("#cmprows").children.length)buildCmpRows(); // 对比模式先开、provider 列表后到的场景
+  updateKeyDot();
 }).catch(()=>{});
 $("#provider").addEventListener("change",applyProvider);
 
@@ -322,7 +380,7 @@ async function loadTasks(){
 }
 window.loadTasks=loadTasks;
 loadTasks();
-$("#pgver").textContent="页面版本 2026-10-16 14:03";
+$("#pgver").textContent="页面版本 2026-10-16 15:21";
 window.addEventListener("error",e=>{const b=$("#errbox");b.textContent="页面脚本错误: "+e.message+"（"+(e.filename||"")+":"+e.lineno+"）";b.style.display="block";});
 window.addEventListener("unhandledrejection",e=>{const b=$("#errbox");b.textContent="异步请求错误: "+((e.reason&&e.reason.message)||e.reason);b.style.display="block";});
 async function bankPick(next){
@@ -362,6 +420,23 @@ if(location.search.indexOf("cmp=1")>=0) setTimeout(()=>{ // 自测钩子: /?cmp=
   setCmp(true);
   $("#tpl").value="custom";loadTemplate("custom");
   $("#statejson").value=JSON.stringify({text:"My checkout page shows a blank screen after I click Pay."});
+  send();
+},1500);
+if(location.search.indexOf("keys=1")>=0) setTimeout(()=>{ // 自测钩子: /?keys=1 —— 预设一个页面 key 并开面板回显
+  localStorage.setItem("jev_key_mock-a","test-key-abc");
+  openKeyPanel();
+  const probe=document.createElement("div");probe.id="keytest";
+  probe.textContent=`rows=${document.querySelectorAll("#keyrows .keyrow").length}`+
+    ` mocka=${(document.querySelector('#keyrows input[data-kp="mock-a"]')||{}).value||""}`+
+    ` green=${document.querySelectorAll("#keyrows .kd.on").length}`;
+  document.body.appendChild(probe);
+},1500);
+if(location.search.indexOf("keysend=1")>=0) setTimeout(()=>{ // 自测钩子: /?keysend=1 —— 预设页面 key、对比只勾 mock-key、发送（验证 key 送达）
+  localStorage.setItem("jev_key_mock-key","sk-test-123");
+  setCmp(true);
+  document.querySelectorAll("#cmprows .cmprow").forEach(r=>{r.querySelector(".cmpon").checked=r.querySelector(".cmpprov").value==="mock-key";});
+  $("#tpl").value="custom";loadTemplate("custom");
+  $("#statejson").value=JSON.stringify({text:"key delivery test"});
   send();
 },1500);
 window.onBankChange=function(){
@@ -476,7 +551,7 @@ async function send(){
   try{payload=collect();}
   catch(e){err.textContent=e.message;err.style.display="block";return;}
   if(CMP_ON){await sendCompare(payload);return;}
-  const req={key:keyEl.value.trim(),provider:$("#provider").value||"typesafe",model:$("#model").value.trim()||"jev-latest",...payload};
+  const req={key:pageKey($("#provider").value||"typesafe"),provider:$("#provider").value||"typesafe",model:$("#model").value.trim()||"jev-latest",...payload};
   const btn=$("#send");btn.disabled=true;btn.textContent="请求中…";
   try{
     const r=await fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(req)});
@@ -498,9 +573,9 @@ function setCmp(on){
   $("#cmpbtn").classList.toggle("on",on);
   $("#provider").style.display=on?"none":"";
   $("#model").style.display=on?"none":"";
-  document.querySelector(".keywrap").style.display=on?"none":"";
   $("#comparebox").style.display=on?"":"none";
   if(on&&PROVIDERS.length&&!$("#cmprows").children.length)buildCmpRows();
+  updateKeyDot();
 }
 $("#cmpbtn").onclick=()=>setCmp(!CMP_ON);
 function cmpRow(prov){
@@ -512,8 +587,9 @@ function cmpRow(prov){
   const sel=d.querySelector(".cmpprov"),model=d.querySelector(".cmpmodel");
   PROVIDERS.forEach(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=p.name;sel.appendChild(o);});
   sel.value=prov.id;model.value=prov.model_default||"";
-  sel.addEventListener("change",()=>{const p=PROVIDERS.find(x=>x.id===sel.value);model.value=(p&&p.model_default)||"";});
-  d.querySelector(".xbtn").onclick=()=>d.remove();
+  sel.addEventListener("change",()=>{const p=PROVIDERS.find(x=>x.id===sel.value);model.value=(p&&p.model_default)||"";updateKeyDot();});
+  d.querySelector(".cmpon").addEventListener("change",updateKeyDot);
+  d.querySelector(".xbtn").onclick=()=>{d.remove();updateKeyDot();};
   $("#cmprows").appendChild(d);
 }
 function buildCmpRows(){$("#cmprows").innerHTML="";PROVIDERS.forEach(p=>cmpRow(p));}
@@ -529,7 +605,7 @@ async function sendCompare(payload){
   try{
     const settled=await Promise.allSettled(rows.map(w=>
       fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({provider:w.provider,model:w.model,...payload})}) // 不带页面 key：各端点用各自环境变量
+        body:JSON.stringify({provider:w.provider,model:w.model,key:pageKey(w.provider),...payload})}) // 每行带各自 provider 的页面 key；没有则服务端落回环境变量
         .then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.error||("HTTP "+r.status));return j;})));
     renderCompare(rows,settled,payload);
   }catch(e){
