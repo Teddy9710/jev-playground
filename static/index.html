@@ -383,6 +383,7 @@ let LANG=localStorage.getItem("jev_lang");
 if(location.search.indexOf("lang=en")>=0)LANG="en"; // 自测钩子
 if(LANG!=="en")LANG="zh";
 const tr=(k,vars)=>{const v=I18N[k];let s=v?(LANG==="en"?v[1]:v[0]):k;if(vars)for(const kk in vars)s=s.split("{"+kk+"}").join(vars[kk]);return s;};
+const srvErr=j=>(LANG==="en"&&j&&j.error_en)?j.error_en:(j&&j.error)||""; // 服务端错误按界面语言取 error / error_en
 function applyI18n(){
   document.querySelectorAll("[data-i18n]").forEach(el=>{el.textContent=tr(el.dataset.i18n);});
   document.querySelectorAll("[data-i18n-html]").forEach(el=>{el.innerHTML=tr(el.dataset.i18nHtml);});
@@ -391,7 +392,7 @@ function applyI18n(){
   $("#pgver").textContent=tr("pgver_prefix")+PGVER_STAMP;
 };
 // ---------- 模板（frozen=true 的 question 文本逐字取自 jev-benchmarking harness，即论文冻结模板） ----------
-const PGVER_STAMP="2026-10-19 22:47";
+const PGVER_STAMP="2026-10-20 00:12";
 const PH_CLONE=document.querySelector("#results .placeholder").cloneNode(true);
 const tName=t=>LANG==="en"&&t.name_en?t.name_en:t.name;
 const tNote=t=>LANG==="en"&&t.note_en?t.note_en:t.note;
@@ -614,7 +615,7 @@ async function loadTasks(){
   try{
     const r=await fetch("/api/tasks");
     const j=await r.json();
-    if(!j.ok)throw new Error(j.error||("HTTP "+r.status));
+    if(!j.ok)throw new Error(srvErr(j)||("HTTP "+r.status));
     sel.innerHTML="";
     j.tasks.forEach(t=>{const o=document.createElement("option");o.value=t.name;o.textContent=`${t.name} — ${t.description||""}`;sel.appendChild(o);});
     if(!window.__autoPicked){window.__autoPicked=true;bankPick(false);} // 打开页面即自动出第一批题，全程零点击
@@ -643,7 +644,7 @@ async function bankPick(next){
     const r=await fetch("/api/pick",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({task,offset:BANK.offset,n:5})});
     const j=await r.json();
     const box=$("#bankitems");
-    if(!j.ok){box.innerHTML=`<div class="hint" style="color:var(--err)">${esc(j.error)}</div>`;return;}
+    if(!j.ok){box.innerHTML=`<div class="hint" style="color:var(--err)">${esc(srvErr(j))}</div>`;return;}
     box.innerHTML="";
     if(!j.items.length){box.innerHTML=`<div class="hint">${tr("bank_no_more")}</div>`;return;}
     window.BANK_CUR=j.items;
@@ -699,7 +700,7 @@ window.bankDelete=async function(){
   try{
     const r=await fetch("/api/banks/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bank:name})});
     const j=await r.json();
-    if(!j.ok)throw new Error(j.error||("HTTP "+r.status));
+    if(!j.ok)throw new Error(srvErr(j)||("HTTP "+r.status));
     await loadTasks();
     $("#bankitems").innerHTML=`<div class="hint">${tr("bank_deleted")}</div>`;
   }catch(e){$("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">${tr("del_fail")}${esc(String(e))}</div>`;}
@@ -710,7 +711,7 @@ $("#bankfile").onchange=async function(){
     const data=JSON.parse(await f.text());
     const r=await fetch("/api/banks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
     const j=await r.json();
-    if(!j.ok)throw new Error(j.error||("HTTP "+r.status));
+    if(!j.ok)throw new Error(srvErr(j)||("HTTP "+r.status));
     $("#bankitems").innerHTML=`<div class="hint" style="color:var(--ok)">${tr("bank_saved",{b:esc(j.bank),n:j.count})}</div>`;
     await loadTasks();
   }catch(e){$("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">${tr("upload_fail")}${esc(String(e.message||e))}</div>`;}
@@ -735,7 +736,7 @@ $("#savebank").onclick=function(){
       const r=await fetch("/api/banks/add_item",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({bank:$("#svbank").value.trim()||"my-bank",state:payload.state,questions:payload.questions,gold})});
       const j=await r.json();
-      if(!j.ok)throw new Error(j.error||("HTTP "+r.status));
+      if(!j.ok)throw new Error(srvErr(j)||("HTTP "+r.status));
       msg.style.color="var(--ok)";msg.textContent=tr("sv_ok",{b:j.bank,n:j.count});
       setTimeout(()=>f.remove(),1500);
       loadTasks();
@@ -804,7 +805,7 @@ async function send(){
   try{
     const r=await fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(req)});
     const j=await r.json();
-    if(!j.ok){err.textContent=j.error||("HTTP "+r.status);err.style.display="block";return;}
+    if(!j.ok){err.textContent=srvErr(j)||("HTTP "+r.status);err.style.display="block";return;}
     renderResult(j,req);
   }catch(e){
     err.textContent=tr("conn_fail")+e;err.style.display="block";
@@ -855,7 +856,7 @@ async function sendCompare(payload){
     const settled=await Promise.allSettled(rows.map(w=>
       fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({provider:w.provider,model:w.model,key:pageKey(w.provider),...payload})}) // 每行带各自 provider 的页面 key；没有则服务端落回环境变量
-        .then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.error||("HTTP "+r.status));return j;})));
+        .then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(srvErr(j)||("HTTP "+r.status));return j;})));
     renderCompare(rows,settled,payload);
   }catch(e){
     err.textContent=tr("conn_fail")+e;err.style.display="block";

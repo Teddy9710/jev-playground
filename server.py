@@ -42,7 +42,16 @@ class RawResponse(BaseModel):
 
 
 class Bad(Exception):
-    """请求本身不合法（4xx 可恢复，前端展示 message）。"""
+    """请求本身不合法（4xx 可恢复，前端展示 message）。message 为中文，en 为英文译文（可空）。"""
+
+    def __init__(self, zh: str, en: str = ""):
+        super().__init__(zh)
+        self.en = en
+
+
+def err(zh: str, en: str) -> dict:
+    """标准错误响应：error=中文、error_en=英文，前端按界面语言取用。"""
+    return {"ok": False, "error": zh, "error_en": en}
 
 
 def validate_questions(specs: list[dict]) -> dict:
@@ -55,24 +64,25 @@ def validate_questions(specs: list[dict]) -> dict:
     for i, s in enumerate(specs):
         qid = str(s.get("id") or f"q{i + 1}").strip()
         if not qid or qid in out:
-            raise Bad(f"问题 id 非法或重复: {qid!r}")
+            raise Bad(f"问题 id 非法或重复: {qid!r}", f"Question id invalid or duplicated: {qid!r}")
         instr = str(s.get("instructions") or "").strip()
         if not instr:
-            raise Bad(f"问题 {qid}: instructions 不能为空")
+            raise Bad(f"问题 {qid}: instructions 不能为空", f"Question {qid}: instructions must not be empty")
         t = s.get("type")
         if t == "choice":
             opts = s.get("options") or {}
             if not isinstance(opts, dict) or not (2 <= len(opts) <= 255):
-                raise Bad(f"问题 {qid}: choice 需要 2-255 个选项")
+                raise Bad(f"问题 {qid}: choice 需要 2-255 个选项", f"Question {qid}: choice needs 2-255 options")
             keys = [str(k).strip() for k in opts]
             if any(not k for k in keys) or len(set(keys)) != len(keys):
-                raise Bad(f"问题 {qid}: 选项 key 为空或重复")
+                raise Bad(f"问题 {qid}: 选项 key 为空或重复", f"Question {qid}: option keys empty or duplicated")
             out[qid] = {"type": "choice", "instructions": instr,
                         "criteria": {k: (str(v) if v not in (None, "") else None) for k, v in opts.items()}}
         elif t == "score":
             levels = [str(x).strip() for x in (s.get("levels") or []) if str(x).strip()]
             if not (2 <= len(levels) <= 10) or len(set(levels)) != len(levels):
-                raise Bad(f"问题 {qid}: score 需要 2-10 个非空且不重复的等级")
+                raise Bad(f"问题 {qid}: score 需要 2-10 个非空且不重复的等级",
+                          f"Question {qid}: score needs 2-10 non-empty unique levels")
             out[qid] = {"type": "score", "instructions": instr, "criteria": levels}
         elif t == "noul":
             crit = s.get("criteria") or {}
@@ -80,30 +90,32 @@ def validate_questions(specs: list[dict]) -> dict:
             out[qid] = {"type": "noul", "instructions": instr,
                         "criteria": ({"true": true_, "false": false_} if true_ and false_ else None)}
         else:
-            raise Bad(f"问题 {qid}: 未知类型 {t!r}（choice/noul/score）")
+            raise Bad(f"问题 {qid}: 未知类型 {t!r}（choice/noul/score）",
+                      f"Question {qid}: unknown type {t!r} (choice/noul/score)")
     if not out:
-        raise Bad("questions 不能为空")
+        raise Bad("questions 不能为空", "questions must not be empty")
     return out
 
 
 def validate_raw_question(q: object, where: str) -> dict:
     """校验单个 raw（harness/Jev 契约）形状的问题；题库文件与上传 JSON 用。"""
     if not isinstance(q, dict):
-        raise Bad(f"{where}: 不是对象")
+        raise Bad(f"{where}: 不是对象", f"{where}: not an object")
     instr = str(q.get("instructions") or "").strip()
     if not instr:
-        raise Bad(f"{where}: instructions 不能为空")
+        raise Bad(f"{where}: instructions 不能为空", f"{where}: instructions must not be empty")
     t = q.get("type")
     if t == "choice":
         crit = q.get("criteria") or {}
         if not isinstance(crit, dict) or not (2 <= len(crit) <= 255):
-            raise Bad(f"{where}: choice 需要 2-255 个选项")
+            raise Bad(f"{where}: choice 需要 2-255 个选项", f"{where}: choice needs 2-255 options")
         return {"type": "choice", "instructions": instr,
                 "criteria": {str(k): (str(v) if v not in (None, "") else None) for k, v in crit.items()}}
     if t == "score":
         crit = [str(x).strip() for x in (q.get("criteria") or []) if str(x).strip()]
         if not (2 <= len(crit) <= 10) or len(set(crit)) != len(crit):
-            raise Bad(f"{where}: score 需要 2-10 个非空且不重复的等级")
+            raise Bad(f"{where}: score 需要 2-10 个非空且不重复的等级",
+                      f"{where}: score needs 2-10 non-empty unique levels")
         return {"type": "score", "instructions": instr, "criteria": crit}
     if t == "noul":
         c = q.get("criteria") or None
@@ -113,7 +125,7 @@ def validate_raw_question(q: object, where: str) -> dict:
         else:
             c = None
         return {"type": "noul", "instructions": instr, "criteria": c}
-    raise Bad(f"{where}: 未知类型 {t!r}（choice/noul/score）")
+    raise Bad(f"{where}: 未知类型 {t!r}（choice/noul/score）", f"{where}: unknown type {t!r} (choice/noul/score)")
 
 
 def to_sdk(raw: dict) -> dict:
@@ -130,22 +142,27 @@ def to_sdk(raw: dict) -> dict:
     return out
 
 
-def friendly_error(e: Exception) -> tuple[int, str]:
+def friendly_error(e: Exception) -> tuple[int, str, str]:
     if isinstance(e, TypeSafeAPIError):
         status = e.status or 0
         msg = str(e)[:300]
         if status == 401:
-            return 401, f"API key 无效或未授权（HTTP 401）。检查 console.typesafe.ai 的 key。{msg}"
+            return 401, f"API key 无效或未授权（HTTP 401）。检查 console.typesafe.ai 的 key。{msg}", \
+                f"Invalid or unauthorized API key (HTTP 401). Check your key at console.typesafe.ai. {msg}"
         if status == 402:
-            return 402, f"账户余额不足（HTTP 402）。{msg}"
+            return 402, f"账户余额不足（HTTP 402）。{msg}", f"Insufficient account balance (HTTP 402). {msg}"
         if status == 429:
-            return 429, f"触发限流（HTTP 429），稍等几秒重试。{msg}"
+            return 429, f"触发限流（HTTP 429），稍等几秒重试。{msg}", \
+                f"Rate limited (HTTP 429); retry in a few seconds. {msg}"
         if status in (413, 422):
-            return 400, f"请求被 API 拒绝（HTTP {status}，多为 state 过长或字段校验失败）。{msg}"
+            return 400, f"请求被 API 拒绝（HTTP {status}，多为 state 过长或字段校验失败）。{msg}", \
+                f"Request rejected by the API (HTTP {status}, usually an over-long state or a field validation failure). {msg}"
         if status >= 500:
-            return 502, f"TypeSafe 服务端错误（HTTP {status}），可重试。{msg}"
-        return 502, msg
-    return 502, f"{type(e).__name__}: {e}"
+            return 502, f"TypeSafe 服务端错误（HTTP {status}），可重试。{msg}", \
+                f"TypeSafe server error (HTTP {status}), retryable. {msg}"
+        return 502, msg, msg
+    msg = f"{type(e).__name__}: {e}"
+    return 502, msg, msg
 
 
 # ---------------- 决策模型提供方（可插拔适配层） ----------------
@@ -234,17 +251,21 @@ def ask_compatible(url: str, key: str, model: str, state, questions_raw: dict,
             detail = e.read().decode("utf-8", "replace")[:200]
         except Exception:  # noqa: BLE001
             pass
-        raise Bad(f"端点返回 HTTP {e.code}：{detail or e.reason}")
+        raise Bad(f"端点返回 HTTP {e.code}：{detail or e.reason}",
+                  f"Endpoint returned HTTP {e.code}: {detail or e.reason}")
     except urllib.error.URLError as e:
-        raise Bad(f"连不上端点 {url}（服务没起来？）：{e.reason}")
+        raise Bad(f"连不上端点 {url}（服务没起来？）：{e.reason}",
+                  f"Cannot reach endpoint {url} (is the service running?): {e.reason}")
     if unwrap and isinstance(payload, dict):
         errs = payload.get("errors")
         if payload.get("success") is False or (isinstance(errs, list) and errs):
-            raise Bad(f"端点返回错误：{str(errs)[:200]}")
+            raise Bad(f"端点返回错误：{str(errs)[:200]}",
+                      f"Endpoint returned an error: {str(errs)[:200]}")
         if unwrap in payload:
             payload = payload.get(unwrap) or {}
     if not isinstance(payload, dict) or not isinstance(payload.get("answers"), dict):
-        raise Bad(f"端点返回不是 Jev 契约形状（缺 answers 字段）：{str(payload)[:150]}")
+        raise Bad(f"端点返回不是 Jev 契约形状（缺 answers 字段）：{str(payload)[:150]}",
+                  f"Endpoint response is not the Jev contract shape (missing answers): {str(payload)[:150]}")
     return {"model": payload.get("model") or model,
             "answers": _normalize_compatible_answers(payload["answers"], questions_raw),
             "usage": payload.get("usage") or {}}
@@ -331,14 +352,16 @@ def ask_openai(url: str, key: str, model: str, state, questions_raw: dict, timeo
         except Exception:  # noqa: BLE001
             pass
         if e.code == 401:
-            raise Bad(f"OpenAI key 无效（HTTP 401）。{detail}")
+            raise Bad(f"OpenAI key 无效（HTTP 401）。{detail}", f"Invalid OpenAI key (HTTP 401). {detail}")
         if e.code == 429:
-            raise Bad(f"触发限流（HTTP 429），稍等重试。{detail}")
-        raise Bad(f"OpenAI 返回 HTTP {e.code}：{detail or e.reason}")
+            raise Bad(f"触发限流（HTTP 429），稍等重试。{detail}", f"Rate limited (HTTP 429); retry shortly. {detail}")
+        raise Bad(f"OpenAI 返回 HTTP {e.code}：{detail or e.reason}",
+                  f"OpenAI returned HTTP {e.code}: {detail or e.reason}")
     except urllib.error.URLError as e:
-        raise Bad(f"连不上 OpenAI 端点 {url}：{e.reason}")
+        raise Bad(f"连不上 OpenAI 端点 {url}：{e.reason}", f"Cannot reach the OpenAI endpoint {url}: {e.reason}")
     if not isinstance(payload, dict) or not isinstance(payload.get("answers"), list):
-        raise Bad(f"端点返回不是 Decisions 契约形状（缺 answers 数组）：{str(payload)[:150]}")
+        raise Bad(f"端点返回不是 Decisions 契约形状（缺 answers 数组）：{str(payload)[:150]}",
+                  f"Endpoint response is not the Decisions contract shape (missing answers array): {str(payload)[:150]}")
     return _openai_normalize(payload, questions_raw)
 
 
@@ -388,7 +411,7 @@ class Handler(BaseHTTPRequestHandler):
             tasks += bank_tasks()
             self._send(200, {"ok": True, "tasks": tasks, "harness": harness_ok})
         else:
-            self._send(404, {"ok": False, "error": "not found"})
+            self._send(404, {"ok": False, "error": "not found", "error_en": "not found"})
 
     def do_POST(self):
         path = urlsplit(self.path).path
@@ -396,7 +419,7 @@ class Handler(BaseHTTPRequestHandler):
             n = int(self.headers.get("Content-Length") or 0)
             req = json.loads(self.rfile.read(n).decode("utf-8"))
         except Exception as e:  # noqa: BLE001
-            self._send(400, {"ok": False, "error": f"请求体不是合法 JSON: {e}"})
+            self._send(400, err(f"请求体不是合法 JSON: {e}", f"Request body is not valid JSON: {e}"))
             return
         routes = {
             "/api/pick": do_pick,
@@ -407,14 +430,15 @@ class Handler(BaseHTTPRequestHandler):
         }
         fn = routes.get(path)
         if fn is None:
-            self._send(404, {"ok": False, "error": "not found"})
+            self._send(404, {"ok": False, "error": "not found", "error_en": "not found"})
             return
         try:
             code, payload = fn(req)
         except Bad as e:
-            code, payload = 400, {"ok": False, "error": str(e)}
+            code, payload = 400, {"ok": False, "error": str(e), "error_en": e.en}
         except Exception as e:  # noqa: BLE001
-            code, payload = 500, {"ok": False, "error": f"{type(e).__name__}: {e}"}
+            msg = f"{type(e).__name__}: {e}"
+            code, payload = 500, {"ok": False, "error": msg, "error_en": msg}
         self._send(code, payload)
 
 
@@ -470,16 +494,16 @@ def do_pick(req: dict) -> tuple[int, dict]:
         offset = max(0, min(int(req.get("offset") or 0), 400))
         n = max(1, min(int(req.get("n") or 5), 10))
     except (TypeError, ValueError):
-        return 400, {"ok": False, "error": "offset/n 需为整数"}
+        return 400, err("offset/n 需为整数", "offset/n must be integers")
 
     if name.startswith("bank:"):  # 自建题库：纯文件读，不依赖 harness
         bname = name[5:]
         try:
             data = load_bank(bname)
         except FileNotFoundError:
-            return 404, {"ok": False, "error": f"题库 {bname!r} 不存在"}
+            return 404, err(f"题库 {bname!r} 不存在", f"Bank {bname!r} does not exist")
         except Bad as e:
-            return 400, {"ok": False, "error": str(e)}
+            return 400, {"ok": False, "error": str(e), "error_en": e.en}
         items = (data.get("items") or [])[offset:offset + n]
         return 200, {"ok": True, "task": name, "description": data.get("description") or "",
                      "offset": offset, "items": items,
@@ -488,14 +512,17 @@ def do_pick(req: dict) -> tuple[int, dict]:
     try:
         tasks = harness_tasks()
     except Exception as e:  # noqa: BLE001
-        return 503, {"ok": False, "error": f"题库加载失败（多半是内存不足，关掉些大程序再点取题）: {type(e).__name__}: {str(e)[:150]}"}
+        return 503, err(f"题库加载失败（多半是内存不足，关掉些大程序再点取题）: {type(e).__name__}: {str(e)[:150]}",
+                        f"Question banks failed to load (most likely out of memory — close some large programs and retry): "
+                        f"{type(e).__name__}: {str(e)[:150]}")
     if name not in tasks:
-        return 400, {"ok": False, "error": f"未知任务 {name!r}"}
+        return 400, err(f"未知任务 {name!r}", f"Unknown task {name!r}")
     t = tasks[name]
     try:
         exs = t.examples("eval", limit=offset + n)
     except Exception as e:  # noqa: BLE001
-        return 502, {"ok": False, "error": f"题目加载失败: {type(e).__name__}: {str(e)[:200]}"}
+        return 502, err(f"题目加载失败: {type(e).__name__}: {str(e)[:200]}",
+                        f"Failed to load examples: {type(e).__name__}: {str(e)[:200]}")
     items = [serialize_example(e) for e in exs[offset:offset + n]]
     return 200, {
         "ok": True, "task": name, "description": t.description,
@@ -509,34 +536,38 @@ def do_ask(req: dict) -> tuple[int, dict]:
     provider_id = str(req.get("provider") or "typesafe")
     prov = load_providers().get(provider_id)
     if prov is None:
-        return 400, {"ok": False, "error": f"未知 provider {provider_id!r}（GET /api/models 查看可用）"}
+        return 400, err(f"未知 provider {provider_id!r}（GET /api/models 查看可用）",
+                        f"Unknown provider {provider_id!r} (GET /api/models lists the available ones)")
     model = str(req.get("model") or "").strip() or str(prov.get("model_default") or "jev-latest")
 
     state = req.get("state")
     if isinstance(state, str) and state.strip():
         state = state.strip()
     if not isinstance(state, (dict, list, str)) or state in ({}, [], ""):
-        return 400, {"ok": False, "error": "state 不能为空（字符串或 JSON 对象/数组）"}
+        return 400, err("state 不能为空（字符串或 JSON 对象/数组）",
+                        "state must not be empty (a string or a JSON object/array)")
     try:
         raw = validate_questions(req.get("questions") or [])
     except Bad as e:
-        return 400, {"ok": False, "error": str(e)}
+        return 400, {"ok": False, "error": str(e), "error_en": e.en}
 
     t0 = time.monotonic()
     if prov.get("kind") == "compatible":
         url = str(prov.get("url") or "").strip()
         if not url:
-            return 400, {"ok": False, "error": f"provider {provider_id!r} 缺 url（编辑 providers.json）"}
+            return 400, err(f"provider {provider_id!r} 缺 url（编辑 providers.json）",
+                            f"provider {provider_id!r} has no url (edit providers.json)")
         key = str(req.get("key") or "").strip()
         if not key and prov.get("key_env"):
             key = os.environ.get(str(prov["key_env"]), "")
             if not key:
-                return 400, {"ok": False, "error": f"没有 API key：设置环境变量 {prov['key_env']}，或在页面右上角输入（只存你的浏览器）。"}
+                return 400, err(f"没有 API key：设置环境变量 {prov['key_env']}，或在页面右上角输入（只存你的浏览器）。",
+                                f"No API key: set the {prov['key_env']} environment variable, or enter it via the Key button in the header (stored only in your browser).")
         try:
             result = ask_compatible(url, key, model, state, raw, auth=str(prov.get("auth") or "bearer"),
                                     unwrap=str(prov.get("unwrap") or ""))
         except Bad as e:
-            return 400, {"ok": False, "error": str(e)}
+            return 400, {"ok": False, "error": str(e), "error_en": e.en}
         # 自部署端点不计价；托管兼容端点（如 OpenRouter）回真实 usage.cost 就直接用；
         # 否则 provider 配了 price_in_mtok（如 Cloudflare Workers AI）就按 token 估算
         u = result["usage"] or {}
@@ -556,11 +587,12 @@ def do_ask(req: dict) -> tuple[int, dict]:
         env_name = str(prov.get("key_env") or "OPENAI_API_KEY")
         key = str(req.get("key") or "").strip() or os.environ.get(env_name, "")
         if not key:
-            return 400, {"ok": False, "error": f"没有 API key：设置环境变量 {env_name}，或在页面右上角输入（只存你的浏览器）。"}
+            return 400, err(f"没有 API key：设置环境变量 {env_name}，或在页面右上角输入（只存你的浏览器）。",
+                            f"No API key: set the {env_name} environment variable, or enter it via the Key button in the header (stored only in your browser).")
         try:
             result = ask_openai(url, key, model, state, raw)
         except Bad as e:
-            return 400, {"ok": False, "error": str(e)}
+            return 400, {"ok": False, "error": str(e), "error_en": e.en}
         in_tok = int(result["usage"].get("input_tokens") or 0)
         return 200, {
             "ok": True, "provider": provider_id, "model": result["model"],
@@ -572,13 +604,14 @@ def do_ask(req: dict) -> tuple[int, dict]:
     # TypeSafe 官方（SDK 路径，行为与旧版完全一致）
     key = str(req.get("key") or "").strip() or os.environ.get("TYPESAFE_API_KEY", "")
     if not key:
-        return 400, {"ok": False, "error": "没有 API key：设置环境变量 TYPESAFE_API_KEY，或在页面右上角输入（只存你的浏览器）。"}
+        return 400, err("没有 API key：设置环境变量 TYPESAFE_API_KEY，或在页面右上角输入（只存你的浏览器）。",
+                        "No API key: set the TYPESAFE_API_KEY environment variable, or enter it via the Key button in the header (stored only in your browser).")
     try:
         with TypeSafeClient(api_key=key, model=model, timeout=60.0) as client:
             resp = client.system_one(state, to_sdk(raw), response_model=RawResponse)
     except Exception as e:  # noqa: BLE001
-        code, msg = friendly_error(e)
-        return code, {"ok": False, "error": msg}
+        code, msg, msg_en = friendly_error(e)
+        return code, {"ok": False, "error": msg, "error_en": msg_en}
     body = resp.model_dump()
     usage = body.get("usage") or {}
     in_tok = int(usage.get("input_tokens") or 0)
@@ -594,7 +627,8 @@ def do_ask(req: dict) -> tuple[int, dict]:
 def _safe_bank_name(name: object) -> str:
     n = "".join(c for c in str(name or "").strip() if c.isalnum() or c in "-_")[:40]
     if not n:
-        raise Bad("题库名不能为空（只允许字母数字、-、_，最长 40 字符）")
+        raise Bad("题库名不能为空（只允许字母数字、-、_，最长 40 字符）",
+                  "Bank name must not be empty (letters/digits/-/_ only, max 40 chars)")
     return n
 
 
@@ -619,7 +653,8 @@ def load_bank(name: str) -> dict:
     path = BANKS_DIR / f"{_safe_bank_name(name)}.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict) or not isinstance(data.get("items"), list):
-        raise Bad(f"题库 {name!r} 格式不对（缺 items 数组）")
+        raise Bad(f"题库 {name!r} 格式不对（缺 items 数组）",
+                  f"Bank {name!r} has an invalid format (missing items array)")
     return data
 
 
@@ -630,19 +665,21 @@ def _write_bank(name: str, data: dict):
 
 def _validate_bank_item(it: object, where: str) -> dict:
     if not isinstance(it, dict):
-        raise Bad(f"{where}: 不是对象")
+        raise Bad(f"{where}: 不是对象", f"{where}: not an object")
     state = it.get("state")
     if isinstance(state, str):
         state = state.strip()
     if state in (None, "", {}, []):
-        raise Bad(f"{where}.state 不能为空")
+        raise Bad(f"{where}.state 不能为空", f"{where}.state must not be empty")
     qmap = it.get("questions")
     if not isinstance(qmap, dict) or not qmap:
-        raise Bad(f"{where}.questions 不能为空（{{id: {{type, instructions, criteria}}}}）")
+        raise Bad(f"{where}.questions 不能为空（{{id: {{type, instructions, criteria}}}}）",
+                  f"{where}.questions must not be empty ({{id: {{type, instructions, criteria}}}})")
     qout = {str(qid): validate_raw_question(q, f"{where}.questions[{qid}]") for qid, q in qmap.items()}
     gold = it.get("gold") or {}
     if not isinstance(gold, dict):
-        raise Bad(f"{where}.gold 需为对象（{{问题id: 标准答案}}）")
+        raise Bad(f"{where}.gold 需为对象（{{问题id: 标准答案}}）",
+                  f"{where}.gold must be an object ({{question id: gold answer}})")
     return {"state": state, "questions": qout, "gold": gold}
 
 
@@ -651,7 +688,7 @@ def do_bank_save(req: dict) -> tuple[int, dict]:
     name = _safe_bank_name(req.get("name"))
     items_in = req.get("items")
     if not isinstance(items_in, list) or not items_in:
-        raise Bad("items 需为非空数组")
+        raise Bad("items 需为非空数组", "items must be a non-empty array")
     items = [_validate_bank_item(it, f"item[{i}]") for i, it in enumerate(items_in)]
     _write_bank(name, {"name": name, "description": str(req.get("description") or ""), "items": items})
     _log_line(f"bank saved: {name} ({len(items)} items)")
@@ -665,16 +702,17 @@ def do_bank_add_item(req: dict) -> tuple[int, dict]:
     if isinstance(state, str):
         state = state.strip()
     if state in (None, "", {}, []):
-        raise Bad("state 不能为空")
+        raise Bad("state 不能为空", "state must not be empty")
     raw = validate_questions(req.get("questions") or [])  # 前端 specs → raw（同时完成校验）
     gold = req.get("gold") or {}
     if not isinstance(gold, dict):
-        raise Bad("gold 需为对象（{问题id: 标准答案}）")
+        raise Bad("gold 需为对象（{问题id: 标准答案}）", "gold must be an object ({question id: gold answer})")
     path = BANKS_DIR / f"{name}.json"
     if path.exists():
         data = load_bank(name)
         if (data.get("items") or []) and any(not isinstance(x, dict) for x in data["items"]):
-            raise Bad(f"题库 {name!r} 现有文件损坏，请先删除再存")
+            raise Bad(f"题库 {name!r} 现有文件损坏，请先删除再存",
+                      f"Bank {name!r} file is corrupt; delete it first, then save again")
     else:
         data = {"name": name, "description": "", "items": []}
     data.setdefault("items", []).append({"state": state, "questions": raw, "gold": gold})
