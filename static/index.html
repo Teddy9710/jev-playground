@@ -9,6 +9,7 @@
     --bg:#0b0e14; --panel:#11151d; --panel2:#171c26; --panel3:#1e2432;
     --line:#232a38; --line2:#313b50; --track:#0c0f16;
     --fg:#e7ebf3; --dim:#a3aec6; --faint:#7e8aa3;
+    --viz-top:#4c8dff; --viz-dim:#356bd0; --viz-track:#1b2d50; --viz-thr:#43536f;
     --accent:#4c8dff; --accent2:#82b0ff; --accent-soft:rgba(76,141,255,.14);
     --ok:#34d399; --ok-soft:rgba(52,211,153,.12);
     --warn:#fbbf24; --err:#f87171; --err-soft:rgba(248,113,113,.12);
@@ -34,6 +35,10 @@
   .epgroup input{border:none;background:transparent;width:116px;min-width:0;padding:0 10px 0 11px;font-family:var(--mono);font-size:12px;border-left:1px solid var(--line)}
   .epgroup select:focus,.epgroup input:focus{outline:none}
   #pgver{font-size:10.5px;color:var(--faint);font-family:var(--mono);flex:none}
+  #langsw{display:flex;border:1px solid var(--line);border-radius:9px;background:var(--panel2);height:32px;overflow:hidden;flex:none}
+  #langsw button{border:none;background:transparent;color:var(--faint);font-size:12px;padding:0 11px;cursor:pointer;transition:color .15s,background .15s}
+  #langsw button:hover{color:var(--fg)}
+  #langsw button.on{background:var(--accent-soft);color:var(--accent2);font-weight:600}
 
   /* ---------- 输入控件 ---------- */
   input,textarea,select{background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:6px 10px;font:inherit;transition:border-color .15s,box-shadow .15s}
@@ -42,6 +47,7 @@
   select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239aa6bd' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:27px;cursor:pointer}
   input[type=checkbox]{accent-color:var(--accent)}
   input[type=file]{display:none}
+  ::placeholder{color:#6b7890;opacity:1}
 
   /* ---------- 按钮 ---------- */
   button{font:inherit}
@@ -73,7 +79,8 @@
   .badge{font-size:10.5px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent2);flex:none;font-family:var(--mono)}
   .badge.frozen{background:var(--ok-soft);color:#7ef0bd}
   details.note{border:1px solid var(--line);border-radius:9px;margin:0 0 10px;background:var(--panel2)}
-  details.note summary{cursor:pointer;padding:7px 12px;font-size:12px;color:var(--dim);user-select:none;list-style:none;display:flex;align-items:center;gap:7px}
+  details.note summary{cursor:pointer;padding:7px 12px;font-size:12px;font-weight:600;color:var(--dim);user-select:none;list-style:none;display:flex;align-items:center;gap:7px;transition:color .15s}
+  details.note summary:hover{color:var(--fg)}
   details.note summary::-webkit-details-marker{display:none}
   details.note summary::before{content:"▸";color:var(--faint);font-size:10px;transition:transform .15s}
   details.note[open] summary::before{transform:rotate(90deg)}
@@ -99,7 +106,7 @@
   .optrow input.desc{flex:1;min-width:0}
 
   /* ---------- 发送 / 错误 / 统计 ---------- */
-  #send{width:100%;height:44px;font-size:14.5px;font-weight:650;background:linear-gradient(180deg,#5b97ff,#3f7df0);color:#fff;border:none;border-radius:10px;cursor:pointer;letter-spacing:.3px;transition:filter .15s,transform .06s;box-shadow:0 4px 16px rgba(76,141,255,.28)}
+  #send{width:100%;height:44px;font-size:14.5px;font-weight:650;background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;letter-spacing:.3px;transition:filter .15s,transform .06s;box-shadow:0 4px 14px rgba(76,141,255,.22)}
   #send:hover{filter:brightness(1.09)}
   #send:active{transform:translateY(1px)}
   #send:disabled{opacity:.55;cursor:wait}
@@ -124,24 +131,29 @@
   .gold .hint{color:rgba(167,243,208,.62)}
 
   /* ---------- 概率条 / 刻度 ---------- */
-  .pbar{display:grid;grid-template-columns:minmax(84px,150px) 1fr 52px;gap:10px;align-items:center;margin-bottom:5px;font-size:12.5px}
+  .pbar{display:grid;grid-template-columns:minmax(56px,110px) minmax(36px,1fr) 46px;gap:8px;align-items:center;margin-bottom:6px;font-size:12.5px}
   .pbar>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:12px;color:var(--dim)}
-  .pbar.top>span:first-child{color:var(--accent2);font-weight:600}
-  .pbar .track{background:var(--track);border:1px solid rgba(255,255,255,.04);border-radius:99px;height:14px;overflow:hidden}
-  .pbar .fill{height:100%;background:linear-gradient(90deg,rgba(76,141,255,.4),var(--accent));border-radius:99px;transition:width .5s ease}
-  .pbar.top .fill{background:linear-gradient(90deg,rgba(52,211,153,.38),var(--ok))}
+  .pbar.top>span:first-child{color:var(--fg);font-weight:600}
+  .pbar .track{background:var(--viz-track);border-radius:99px;height:9px;overflow:hidden}
+  .pbar .fill{height:100%;background:var(--viz-dim);border-radius:99px;transition:width .5s ease}
+  .pbar.top .fill{background:var(--viz-top)}
+  .pbar:hover .fill{filter:brightness(1.18)}
   .pbar .pct{text-align:right;font-family:var(--mono);font-size:11.5px;color:var(--dim)}
-  .noulbar{position:relative;background:linear-gradient(90deg,rgba(248,113,113,.16),rgba(251,191,36,.1),rgba(52,211,153,.16));border:1px solid rgba(255,255,255,.05);border-radius:99px;height:14px;margin:14px 0 8px}
-  .noulbar .fill{height:100%;border-radius:99px 0 0 99px;background:linear-gradient(90deg,rgba(76,141,255,.3),rgba(76,141,255,.62))}
-  .noulbar .half{position:absolute;left:50%;top:-3px;bottom:-3px;border-left:1px dashed var(--faint)}
-  .noulbar .knob{position:absolute;top:50%;width:16px;height:16px;background:#fff;border:3px solid var(--accent);border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 1px 5px rgba(0,0,0,.55)}
-  .scale{position:relative;height:42px;margin:10px 0 4px}
-  .scale .rail{position:absolute;top:13px;left:0;right:0;height:8px;background:var(--panel2);border:1px solid var(--line);border-radius:99px}
-  .scale .knob{position:absolute;top:8px;width:18px;height:18px;background:var(--panel);border:3px solid var(--accent);border-radius:50%;transform:translateX(-50%);box-shadow:0 1px 5px rgba(0,0,0,.45)}
-  .scale .lv{position:absolute;top:29px;transform:translateX(-50%);font-size:10.5px;color:var(--faint);font-family:var(--mono)}
-  .conf{display:flex;align-items:center;gap:9px;color:var(--dim);font-size:12px;margin-top:10px}
-  .conf .track{width:130px;height:8px;background:var(--track);border-radius:99px;overflow:hidden;border:1px solid rgba(255,255,255,.04)}
-  .conf .fill{height:100%;background:linear-gradient(90deg,#6d5bd0,#8b7cf6);border-radius:99px}
+  .pbar.top .pct{color:var(--fg);font-weight:600}
+  .noulbar{position:relative;background:var(--viz-track);border-radius:99px;height:9px;margin:16px 0 10px}
+  .noulbar .fill{height:100%;border-radius:99px 0 0 99px;background:rgba(76,141,255,.35)}
+  .noulbar .half{position:absolute;left:50%;top:-3px;bottom:-3px;border-left:1px solid var(--viz-thr)}
+  .noulbar .knob{position:absolute;top:50%;width:15px;height:15px;background:var(--viz-top);border:none;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--panel)}
+  .scale{position:relative;height:44px;margin:12px 0 6px}
+  .scale .rail{position:absolute;top:14px;left:0;right:0;height:9px;background:var(--viz-track);border-radius:99px}
+  .scale .knob{position:absolute;top:10px;width:17px;height:17px;background:var(--viz-top);border:none;border-radius:50%;transform:translateX(-50%);box-shadow:0 0 0 2px var(--panel)}
+  .scale .lv{position:absolute;top:31px;transform:translateX(-50%);font-size:10.5px;color:var(--faint);font-family:var(--mono)}
+  .scale .lv::before{content:"";position:absolute;left:50%;top:-7px;width:1px;height:6px;background:var(--viz-thr)}
+  .conf{display:flex;align-items:center;gap:9px;color:var(--dim);font-size:12px;margin-top:10px;flex-wrap:wrap}
+  .conf .lab{white-space:nowrap;flex:none}
+  .conf .track{width:130px;height:9px;background:var(--viz-track);border-radius:99px;overflow:hidden;flex:none}
+  .conf .fill{height:100%;background:var(--viz-dim);border-radius:99px;transition:width .4s ease}
+  .conf b{flex:none}
   details{margin-top:8px}
   details summary{cursor:pointer}
   details pre{background:var(--track);border:1px solid var(--line);border-radius:9px;padding:11px;overflow:auto;font-size:11.5px;color:#b7c2d8;font-family:var(--mono);line-height:1.55}
@@ -174,66 +186,67 @@
 </head>
 <body>
 <header>
-  <div class="brand" title="自输入题目 · 实时调 System One">
+  <div class="brand" title="自输入题目 · 实时调 System One" data-i18n-title="brand_title">
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 1.8l2.35 7.85L22.2 12l-7.85 2.35L12 22.2l-2.35-7.85L1.8 12l7.85-2.35L12 1.8z" fill="url(#lgGrad)"/><linearGradient id="lgGrad" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#82b0ff"/><stop offset="1" stop-color="#4c8dff"/></linearGradient></svg>
     <h1>Jev Playground</h1>
   </div>
   <div class="spacer"></div>
-  <div class="epgroup" id="epgroup" title="决策模型提供方（providers.json 可加）· 模型名">
+  <div class="epgroup" id="epgroup" title="决策模型提供方（providers.json 可加）· 模型名" data-i18n-title="epgroup_title">
     <select id="provider"></select>
-    <input id="model" value="jev-latest" title="模型名">
+    <input id="model" value="jev-latest" title="模型名" data-i18n-title="model_title">
   </div>
-  <button id="keybtn" class="ghost tbtn" title="按 provider 配置 API key（只存本浏览器）"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.5 11.5L21 2m-4 2l3.5 3.5M14.5 8.5L18 12"/></svg>Key<span id="keydot" title="API key 状态"></span></button>
-  <button id="cmpbtn" class="ghost tbtn" title="多模型并排对比同一题目"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="7.5" height="15" rx="1.8"/><rect x="13.5" y="4.5" width="7.5" height="15" rx="1.8"/></svg>对比</button>
-  <span class="hint" id="pgver" title="页面版本——刷新后若此处时间变了，说明拿到的就是最新页面"></span>
+  <button id="keybtn" class="ghost tbtn" title="按 provider 配置 API key（只存本浏览器）" data-i18n-title="keybtn_title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.5 11.5L21 2m-4 2l3.5 3.5M14.5 8.5L18 12"/></svg>Key<span id="keydot" title="API key 状态"></span></button>
+  <button id="cmpbtn" class="ghost tbtn" title="多模型并排对比同一题目" data-i18n-title="cmpbtn_title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="7.5" height="15" rx="1.8"/><rect x="13.5" y="4.5" width="7.5" height="15" rx="1.8"/></svg><span data-i18n="cmpbtn_text">对比</span></button>
+  <div id="langsw" title="界面语言 / UI language"><button id="lang-zh" type="button">中</button><button id="lang-en" type="button">EN</button></div>
+  <span class="hint" id="pgver" data-i18n-title="pgver_title"></span>
 </header>
 
 <main>
   <section>
     <div class="card">
-      <h3><span class="step">1</span>题目模板</h3>
+      <h3><span class="step">1</span><span data-i18n="card1_title">题目模板</span></h3>
       <select id="tpl" style="width:100%"></select>
       <div class="hint" id="tplnote" style="margin-top:8px"></div>
     </div>
     <div class="card">
-      <h3><span class="step">2</span>从题库选题（37 个基准数据集真题）</h3>
-      <select id="banktask" onchange="onBankChange()" title="换任务自动出题"></select>
+      <h3><span class="step">2</span><span data-i18n="card2_title">从题库选题（37 个基准数据集真题）</span></h3>
+      <select id="banktask" onchange="onBankChange()" title="换任务自动出题" data-i18n-title="banktask_title"></select>
       <div class="bankbar">
-        <button class="ghost" id="bankget" onclick="bankPick(false)">取题</button>
-        <button class="ghost icon" id="banknext" title="下一批" onclick="bankPick(true)" style="display:none"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 5l6 7-6 7M12.5 5l6 7-6 7"/></svg></button>
-        <button class="ghost danger" id="bankdel" onclick="bankDelete()" style="display:none">删除该题库</button>
+        <button class="ghost" id="bankget" onclick="bankPick(false)" data-i18n="bankget">取题</button>
+        <button class="ghost icon" id="banknext" title="下一批" data-i18n-title="banknext_title" onclick="bankPick(true)" style="display:none"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 5l6 7-6 7M12.5 5l6 7-6 7"/></svg></button>
+        <button class="ghost danger" id="bankdel" onclick="bankDelete()" style="display:none" data-i18n="bankdel">删除该题库</button>
         <span style="flex:1"></span>
-        <button class="ghost" id="bankupload" onclick="$('#bankfile').click()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0L8 8m4-4l4 4M4 20h16"/></svg>上传题库 JSON</button>
+        <button class="ghost" id="bankupload" onclick="$('#bankfile').click()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0L8 8m4-4l4 4M4 20h16"/></svg><span data-i18n="bankupload">上传题库 JSON</span></button>
         <input type="file" id="bankfile" accept=".json,application/json">
       </div>
-      <details class="note"><summary>怎么用？</summary><div class="nbody">打开页面/切换任务即自动出题，无需点按钮。点一条真题（或行尾「载入」）载入下方编辑器，发送后结果卡上方显示标准答案。首次切到某任务可能要加载几十秒缓存。</div></details>
-      <div id="bankitems"><div class="hint">任务列表加载中…</div></div>
+      <details class="note"><summary data-i18n="note_summary">怎么用？</summary><div class="nbody" data-i18n="note_body">打开页面/切换任务即自动出题，无需点按钮。点一条真题（或行尾「载入」）载入下方编辑器，发送后结果卡上方显示标准答案。首次切到某任务可能要加载几十秒缓存。</div></details>
+      <div id="bankitems"><div class="hint" data-i18n="bank_loading">任务列表加载中…</div></div>
     </div>
     <div class="card">
-      <h3><span class="step">3</span>State（题目内容）</h3>
+      <h3><span class="step">3</span><span data-i18n="card3_title">State（题目内容）</span></h3>
       <div id="statefields"></div>
     </div>
     <div class="card">
-      <h3><span class="step">4</span>Questions <button class="addbtn" id="addq">＋ 添加问题</button> <button class="addbtn" id="savebank">存入题库</button></h3>
-      <div class="hint" style="margin:0 0 10px">同一请求内的问题并行独立求值（fan-out，只按一次请求计费）。</div>
+      <h3><span class="step">4</span>Questions <button class="addbtn" id="addq" data-i18n="addq">＋ 添加问题</button> <button class="addbtn" id="savebank" data-i18n="savebank">存入题库</button></h3>
+      <div class="hint" style="margin:0 0 10px" data-i18n="fanout_hint">同一请求内的问题并行独立求值（fan-out，只按一次请求计费）。</div>
       <div id="questions"></div>
     </div>
     <div class="card" id="comparebox" style="display:none">
-      <h3><span class="step">5</span>对比模式 <button class="addbtn" id="cmpadd">＋ 添加选手</button></h3>
-      <div class="hint" style="margin:0 0 10px">勾选要一起发送的模型（每行 = provider + 模型名，可比同端点的不同模型）。同一题发给全部勾选项，结果按「问题 × 模型」并排。key 按各行 provider 从 <b>Key 面板或环境变量</b>取（页面配置优先，顶栏状态点显示是否配齐）；每个模型各计一次费。</div>
+      <h3><span class="step">5</span><span data-i18n="cmp_title">对比模式</span> <button class="addbtn" id="cmpadd" data-i18n="cmpadd">＋ 添加选手</button></h3>
+      <div class="hint" style="margin:0 0 10px" data-i18n-html="cmp_hint">勾选要一起发送的模型（每行 = provider + 模型名，可比同端点的不同模型）。同一题发给全部勾选项，结果按「问题 × 模型」并排。key 按各行 provider 从 <b>Key 面板或环境变量</b>取（页面配置优先，顶栏状态点显示是否配齐）；每个模型各计一次费。</div>
       <div id="cmprows"></div>
     </div>
     <div id="errbox"></div>
-    <button id="send">发送请求<kbd>Ctrl ↵</kbd></button>
-    <div class="hint" style="margin-top:10px">计价：输入 $0.042/MTok，输出免费；典型请求 ≈ $0.0001。本次会话累计 <span id="stats">0 次请求 · 0 tokens · $0.000000</span>（可与 console 用量页对账）</div>
+    <button id="send"><span data-i18n="send_text">发送请求</span><kbd>Ctrl ↵</kbd></button>
+    <div class="hint" style="margin-top:10px"><span data-i18n="stats_hint_pre">计价：输入 $0.042/MTok，输出免费；典型请求 ≈ $0.0001。本次会话累计</span> <span id="stats">0 次请求 · 0 tokens · $0.000000</span><span data-i18n="stats_hint_suf">（可与 console 用量页对账）</span></div>
   </section>
 
   <section>
     <div id="results">
       <div class="placeholder">
         <svg class="ph-ico" width="56" height="56" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2.5" y="4" width="19" height="16" rx="3" stroke="#394459" stroke-width="1.5"/><path d="M12 8.2l1.1 3.7 3.7 1.1-3.7 1.1L12 17.8l-1.1-3.7-3.7-1.1 3.7-1.1L12 8.2z" fill="#4c8dff" opacity=".9"/><path d="M5.5 20.5h6" stroke="#394459" stroke-width="1.5" stroke-linecap="round"/><path d="M14.5 20.5h4" stroke="#2c3549" stroke-width="1.5" stroke-linecap="round"/></svg>
-        <h2>发送题目后，结果会出现在这里</h2>
-        <p>① 选模板 &nbsp;→&nbsp; ② 填内容 &nbsp;→&nbsp; ③ 发送（<kbd>Ctrl ↵</kbd>）<br>带 <span style="color:#7ef0bd">论文冻结模板</span> 标记的模板，与 arXiv 2609.37647 评测用的提问原文完全一致</p>
+        <h2 data-i18n="ph_h2">发送题目后，结果会出现在这里</h2>
+        <p data-i18n-html="ph_p">① 选模板 &nbsp;→&nbsp; ② 填内容 &nbsp;→&nbsp; ③ 发送（<kbd>Ctrl ↵</kbd>）<br>带 <span style="color:#7ef0bd">论文冻结模板</span> 标记的模板，与 arXiv 2609.37647 评测用的提问原文完全一致</p>
       </div>
     </div>
   </section>
@@ -243,11 +256,11 @@
   <div class="modal">
     <div class="mhead">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#82b0ff" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.5 11.5L21 2m-4 2l3.5 3.5M14.5 8.5L18 12"/></svg>
-      <b>API Key 配置</b>
-      <button class="xbtn" title="关闭" onclick="closeKeyPanel()">✕</button>
+      <b data-i18n="keypanel_title">API Key 配置</b>
+      <button class="xbtn" title="关闭" data-i18n-title="close_title" onclick="closeKeyPanel()">✕</button>
     </div>
     <div class="mbody">
-      <div class="hint" style="margin:0 0 12px">每个 provider 一把 key，<b>只存在你的浏览器 localStorage</b>；发送时经本地服务内存转发，绝不落盘、绝不写日志。优先级：<b>页面配置 &gt; 环境变量</b>（各行状态点会显示环境变量是否已设置）。对比模式下每行选手自动带各自 provider 的 key。</div>
+      <div class="hint" style="margin:0 0 12px" data-i18n-html="keypanel_hint">每个 provider 一把 key，<b>只存在你的浏览器 localStorage</b>；发送时经本地服务内存转发，绝不落盘、绝不写日志。优先级：<b>页面配置 &gt; 环境变量</b>（各行状态点会显示环境变量是否已设置）。对比模式下每行选手自动带各自 provider 的 key。</div>
       <div id="keyrows"></div>
     </div>
   </div>
@@ -255,55 +268,183 @@
 
 <script>
 "use strict";
+// ---------- i18n：右上角 中/EN 切换（默认中文；选择存 localStorage） ----------
+const I18N={
+  brand_title:["自输入题目 · 实时调 System One","Type your own task · call System One live"],
+  epgroup_title:["决策模型提供方（providers.json 可加）· 模型名","Decision-model providers (add via providers.json) · model name"],
+  model_title:["模型名","Model name"],
+  keybtn_title:["按 provider 配置 API key（只存本浏览器）","Configure an API key per provider (stored only in this browser)"],
+  cmpbtn_title:["多模型并排对比同一题目","Compare the same task across models side by side"],
+  cmpbtn_text:["对比","Compare"],
+  pgver_title:["页面版本——刷新后若此处时间变了，说明拿到的就是最新页面","Page build time — if it changes after a refresh, you are on the latest page"],
+  card1_title:["题目模板","Task template"],
+  card2_title:["从题库选题（37 个基准数据集真题）","Pick from the question bank (37 benchmark datasets)"],
+  banktask_title:["换任务自动出题","Switching a task auto-picks questions"],
+  bankget:["取题","Pick"],
+  banknext_title:["下一批","Next batch"],
+  bankdel:["删除该题库","Delete this bank"],
+  bankupload:["上传题库 JSON","Upload bank JSON"],
+  note_summary:["怎么用？","How to use"],
+  note_body:["打开页面/切换任务即自动出题，无需点按钮。点一条真题（或行尾「载入」）载入下方编辑器，发送后结果卡上方显示标准答案。首次切到某任务可能要加载几十秒缓存。","Opening the page or switching a task auto-picks questions — no button needed. Click a question (or Load at the end of a row) to load it into the editor below; after sending, the gold answer appears above the result card. The first switch to a task may take tens of seconds to cache."],
+  bank_loading:["任务列表加载中…","Loading task list…"],
+  card3_title:["State（题目内容）","State (task content)"],
+  addq:["＋ 添加问题","＋ Add question"],
+  savebank:["存入题库","Save to bank"],
+  fanout_hint:["同一请求内的问题并行独立求值（fan-out，只按一次请求计费）。","Questions in one request are evaluated independently in parallel (fan-out, billed as a single request)."],
+  cmp_title:["对比模式","Compare mode"],
+  cmpadd:["＋ 添加选手","＋ Add model"],
+  cmp_hint:["勾选要一起发送的模型（每行 = provider + 模型名，可比同端点的不同模型）。同一题发给全部勾选项，结果按「问题 × 模型」并排。key 按各行 provider 从 <b>Key 面板或环境变量</b>取（页面配置优先，顶栏状态点显示是否配齐）；每个模型各计一次费。","Check the models to send together (each row = provider + model name; different models on the same endpoint are comparable). The same questions go to every checked row; results are laid out question × model. Keys come per row from the <b>Key panel or environment variables</b> (page config wins; the header status dot shows whether everything is set). Each model is billed separately."],
+  send_text:["发送请求","Send request"],
+  stats_hint_pre:["计价：输入 $0.042/MTok，输出免费；典型请求 ≈ $0.0001。本次会话累计","Pricing: input $0.042/MTok, output free; a typical request ≈ $0.0001. This session:"],
+  stats_hint_suf:["（可与 console 用量页对账）","(cross-check with the console usage page)"],
+  ph_h2:["发送题目后，结果会出现在这里","Results will appear here once you send"],
+  ph_p:["① 选模板 &nbsp;→&nbsp; ② 填内容 &nbsp;→&nbsp; ③ 发送（<kbd>Ctrl ↵</kbd>）<br>带 <span style=\"color:#7ef0bd\">论文冻结模板</span> 标记的模板，与 arXiv 2609.37647 评测用的提问原文完全一致","① Pick a template &nbsp;→&nbsp; ② Fill it in &nbsp;→&nbsp; ③ Send (<kbd>Ctrl ↵</kbd>)<br>Templates marked <span style=\"color:#7ef0bd\">paper-frozen</span> match the exact prompts used in the arXiv 2609.37647 evaluation"],
+  keypanel_title:["API Key 配置","API keys"],
+  close_title:["关闭","Close"],
+  keypanel_hint:["每个 provider 一把 key，<b>只存在你的浏览器 localStorage</b>；发送时经本地服务内存转发，绝不落盘、绝不写日志。优先级：<b>页面配置 &gt; 环境变量</b>（各行状态点会显示环境变量是否已设置）。对比模式下每行选手自动带各自 provider 的 key。","One key per provider, <b>stored only in your browser's localStorage</b>; relayed through the local server's memory on send — never written to disk or logs. Priority: <b>page config &gt; environment variable</b> (the status dot on each row shows whether the env var is set). In compare mode each row automatically carries its own provider's key."],
+  // ---- JS 生成的字符串 ----
+  ks_page:["页面 key 已配置（优先于环境变量）","Page key configured (overrides the environment variable)"],
+  ks_env:["环境变量已设置（页面配置可覆盖）","Environment variable set (page config can override)"],
+  ks_missing:["未配置 key：点右上角 🔑 Key 配置，或设环境变量","No key configured: click 🔑 Key in the header, or set an environment variable"],
+  ks_nokey:["该端点无需 key","This endpoint needs no key"],
+  kd_cmp_empty:["对比模式：至少勾选一个模型","Compare mode: check at least one model"],
+  kd_cmp_ok:["对比模式：所有勾选端点都有 key","Compare mode: every checked endpoint has a key"],
+  kd_miss_pre:["缺 key：","Missing key: "],
+  kd_miss_suffix:["（点 🔑 Key 配置）"," (click 🔑 Key to configure)"],
+  kp_ph_override:["（环境变量已设置，可覆盖）","(env var set — you can override)"],
+  kp_ph_paste:["粘贴 key（存本浏览器）","Paste key (stored in this browser)"],
+  kp_ph_nokey:["（该端点无需 key）","(no key needed)"],
+  kp_clear_title:["清除该 key","Clear this key"],
+  statejson_label:["state（JSON，可引用字段名用反引号）","state (JSON; reference fields in backticks)"],
+  lv_label:["等级（每行一级，2-10 级，描述具体情境）","Levels (one per line, 2-10; describe concrete situations)"],
+  crt_true_label:["true 判据（可选）","true criterion (optional)"],
+  crt_false_label:["false 判据（可选）","false criterion (optional)"],
+  noul_hint:["Noul 无需选项；可选填 true/false 判据。","Noul needs no options; true/false criteria are optional."],
+  qdel_title:["删除此问题","Delete this question"],
+  qinstr_ph:["instructions：完整问题，用反引号引用 state 字段，如 `text`","instructions: the full question; reference state fields in backticks, e.g. `text`"],
+  optdesc_ph:["描述（可空）","Description (optional)"],
+  addopt:["＋ 选项","＋ Option"],
+  badge_frozen:["论文冻结模板","paper-frozen"],
+  tasks_fail_option:["（任务列表加载失败）","(task list failed to load)"],
+  tasks_fail_pre:["任务列表加载失败: ","Task list failed to load: "],
+  tasks_fail_suf:[" —— server.py 在跑吗？"," — is server.py running?"],
+  retry:["重试","Retry"],
+  pgver_prefix:["页面版本 ","Page build "],
+  err_script:["页面脚本错误: ","Page script error: "],
+  err_async:["异步请求错误: ","Async request error: "],
+  bank_empty_retry:["任务列表还是空的，正在重新加载…","Task list is still empty, reloading…"],
+  loading:["加载中…","Loading…"],
+  bank_no_more:["没有更多了（已到取题上限）。","No more questions (pick limit reached)."],
+  load:["载入","Load"],
+  pick_fail:["取题失败: ","Pick failed: "],
+  bank_deleted:["题库已删除。","Bank deleted."],
+  bank_del_confirm:["删除题库「{b}」？文件会一并删除，不可恢复。","Delete bank \"{b}\"? The file will be removed — this cannot be undone."],
+  del_fail:["删除失败: ","Delete failed: "],
+  bank_saved:["题库「{b}」已保存（{n} 题）。","Bank \"{b}\" saved ({n} questions)."],
+  upload_fail:["上传失败: ","Upload failed: "],
+  sv_label:["存到题库（不存在会新建；字母数字-_）","Save to bank (created if missing; letters/digits/-_)"],
+  sv_gold_label:["标准答案 gold（可选 JSON，如 {\"answer\":\"positive\"}）","Gold answer (optional JSON, e.g. {\"answer\":\"positive\"})"],
+  sv_save:["保存","Save"],
+  sv_need_obj:["gold 需是 JSON 对象","gold must be a JSON object"],
+  sv_ok:["✓ 已存入「{b}」（共 {n} 题）","✓ Saved to \"{b}\" ({n} total)"],
+  collect_empty_state:["state 字段都是空的，填点内容。","State fields are all empty — fill something in."],
+  collect_bad_json:["state JSON 不合法：","Invalid state JSON: "],
+  collect_no_instr:["问题 {id}：instructions 为空。","Question {id}: instructions is empty."],
+  collect_need_opts:["问题 {id}：choice 至少 2 个选项。","Question {id}: choice needs at least 2 options."],
+  collect_need_levels:["问题 {id}：score 至少 2 个等级。","Question {id}: score needs at least 2 levels."],
+  collect_no_q:["至少要有一个问题。","At least one question is required."],
+  sending:["请求中…","Requesting…"],
+  sending_cmp:["请求中…（{n} 个模型）","Requesting… ({n} models)"],
+  conn_fail:["无法连接本地服务（server.py 还在跑吗？）：","Cannot reach the local service (is server.py still running?): "],
+  cmp_need_one:["对比模式：至少勾选一个模型。","Compare mode: check at least one model."],
+  stats_line:["{n} 次请求 · {t} tokens · ${c}","{n} requests · {t} tokens · ${c}"],
+  cmp_meta:["对比 {n} 个模型","Comparing {n} models"],
+  cmp_q:["问题","Question"],
+  raw_resp:[" 原始响应"," raw response"],
+  ans_q:["（问题 {id}）","(question {id})"],
+  conf_label:["置信度","Confidence"],
+  conf_title:["分布集中度，非正确性","How concentrated the distribution is — not correctness"],
+  noul_yes:["倾向 是","leans yes"],
+  noul_no:["倾向 否","leans no"],
+  noul_half:["≈0.5：五五开（注意：不是“中等程度”）","≈0.5: a coin flip (note: not a “moderate degree”)"],
+  noul_scale:["0 ─ 0.5 ─ 1（竖线=0.5 阈值）","0 ─ 0.5 ─ 1 (tick = 0.5 threshold)"],
+  refusal:["⚠ 该问题被模型拒绝回答","⚠ The model refused to answer this question"],
+  req_json:["本次请求 JSON（问题：{q}）","Request JSON (questions: {q})"],
+  raw_json:["原始响应 JSON","Raw response JSON"],
+  levels_full:["等级全文","Full level texts"],
+  gold_line:["标准答案（{t}）: ","Gold answer ({t}): "],
+  gold_note:["— 若你在发送前改过题目，此答案可能不再适用","— if you edited the questions before sending, this may no longer apply"],
+  meta_model:["模型 ","Model "],
+  cmp_on_title:["勾选=参与本次对比","Checked = included in this comparison"],
+  cmp_model_title:["模型名（留空=该 provider 的默认）","Model name (blank = the provider's default)"],
+  cmp_del_title:["删除该行","Remove this row"],
+};
+let LANG=localStorage.getItem("jev_lang");
+if(location.search.indexOf("lang=en")>=0)LANG="en"; // 自测钩子
+if(LANG!=="en")LANG="zh";
+const tr=(k,vars)=>{const v=I18N[k];let s=v?(LANG==="en"?v[1]:v[0]):k;if(vars)for(const kk in vars)s=s.split("{"+kk+"}").join(vars[kk]);return s;};
+function applyI18n(){
+  document.querySelectorAll("[data-i18n]").forEach(el=>{el.textContent=tr(el.dataset.i18n);});
+  document.querySelectorAll("[data-i18n-html]").forEach(el=>{el.innerHTML=tr(el.dataset.i18nHtml);});
+  document.querySelectorAll("[data-i18n-title]").forEach(el=>{el.title=tr(el.dataset.i18nTitle);});
+  document.querySelectorAll("[data-i18n-ph]").forEach(el=>{el.placeholder=tr(el.dataset.i18nPh);});
+  $("#pgver").textContent=tr("pgver_prefix")+PGVER_STAMP;
+};
 // ---------- 模板（frozen=true 的 question 文本逐字取自 jev-benchmarking harness，即论文冻结模板） ----------
+const PGVER_STAMP="2026-10-19 22:47";
+const PH_CLONE=document.querySelector("#results .placeholder").cloneNode(true);
+const tName=t=>LANG==="en"&&t.name_en?t.name_en:t.name;
+const tNote=t=>LANG==="en"&&t.note_en?t.note_en:t.note;
+const fLabel=f=>LANG==="en"&&f.label_en!==undefined?f.label_en:f.label;
+const fPh=f=>LANG==="en"&&f.ph_en!==undefined?f.ph_en:f.ph;
 const T = {
-  custom: {name:"自定义（自由编辑）", frozen:false, note:"state 用 JSON 编辑；可添加任意多个 choice/noul/score 问题。",
+  custom: {name:"自定义（自由编辑）",name_en:"Custom (free-form)", frozen:false, note:"state 用 JSON 编辑；可添加任意多个 choice/noul/score 问题。",note_en:"Edit state as JSON; add as many choice/noul/score questions as you like.",
     jsonState:{text:"在这里写你的内容"},
     questions:[{id:"answer",type:"choice",instructions:"用一句话提出关于 `text` 的判断题，选项在下面。",options:{A:"选项 A 的含义",B:"选项 B 的含义"}}]},
 
-  sentiment: {name:"情感二分类 · IMDB/SST-2（论文模板）", frozen:true, note:"n=25,000 时论文复算 accuracy 0.965。",
-    fields:[{key:"review",label:"review（影评正文）",ph:"Write your review here... (英文影评效果最佳)"}],
+  sentiment: {name:"情感二分类 · IMDB/SST-2（论文模板）",name_en:"Sentiment binary · IMDB/SST-2 (paper)", frozen:true, note:"n=25,000 时论文复算 accuracy 0.965。",note_en:"Recomputed accuracy 0.965 at n=25,000 in the paper.",
+    fields:[{key:"review",label:"review（影评正文）",label_en:"review (movie review text)",ph:"Write your review here... (英文影评效果最佳)"}],
     questions:[{id:"answer",type:"choice",instructions:"What is the overall sentiment of `review` toward the movie?",
       options:{negative:"The text expresses a negative opinion.",positive:"The text expresses a positive opinion."}}]},
 
-  agnews: {name:"新闻四分类 · AG News（论文模板）", frozen:true, note:"论文 accuracy 0.885。",
-    fields:[{key:"article",label:"article（新闻正文）",ph:"Paste a news article..."}],
+  agnews: {name:"新闻四分类 · AG News（论文模板）",name_en:"News 4-way · AG News (paper)", frozen:true, note:"论文 accuracy 0.885。",note_en:"Paper accuracy 0.885.",
+    fields:[{key:"article",label:"article（新闻正文）",label_en:"article (news text)",ph:"Paste a news article..."}],
     questions:[{id:"answer",type:"choice",instructions:"What is the topic of the news `article`?",
       options:{World:"International news, politics, conflicts and world affairs.",Sports:"Sports events, teams and athletes.",Business:"Companies, markets, the economy, finance.","Sci/Tech":"Science, technology, computing, the internet and space."}}]},
 
-  nli: {name:"自然语言推理 · ANLI（论文模板）", frozen:true, note:"论文 accuracy 0.739（R1 81.4% → R3 67.7%）。",
-    fields:[{key:"premise",label:"premise（前提）",ph:"A man is playing a guitar on stage."},{key:"hypothesis",label:"hypothesis（假设）",ph:"The man is asleep."}],
+  nli: {name:"自然语言推理 · ANLI（论文模板）",name_en:"NLI · ANLI (paper)", frozen:true, note:"论文 accuracy 0.739（R1 81.4% → R3 67.7%）。",note_en:"Paper accuracy 0.739 (R1 81.4% → R3 67.7%).",
+    fields:[{key:"premise",label:"premise（前提）",label_en:"premise",ph:"A man is playing a guitar on stage."},{key:"hypothesis",label:"hypothesis（假设）",label_en:"hypothesis",ph:"The man is asleep."}],
     questions:[{id:"answer",type:"choice",instructions:"What is the relationship between `premise` and `hypothesis`?",
       options:{entailment:"`hypothesis` is definitely true given `premise`.",neutral:"`hypothesis` may or may not be true; `premise` does not settle it.",contradiction:"`hypothesis` is definitely false given `premise`."}}]},
 
-  mmlu: {name:"四选一知识题 · MMLU（论文模板）", frozen:true, note:"论文 accuracy 0.918；计算类科目 0.943（论文疑训练暴露，见探针）。",
-    fields:[{key:"subject",label:"subject（科目）",ph:"high school mathematics"},{key:"question",label:"question（题干）",ph:"What is 2 + 2 * 3 ?"},{key:"A",label:"选项 A",ph:"6"},{key:"B",label:"选项 B",ph:"8"},{key:"C",label:"选项 C",ph:"12"},{key:"D",label:"选项 D",ph:"10"}],
+  mmlu: {name:"四选一知识题 · MMLU（论文模板）",name_en:"4-way knowledge · MMLU (paper)", frozen:true, note:"论文 accuracy 0.918；计算类科目 0.943（论文疑训练暴露，见探针）。",note_en:"Paper accuracy 0.918; 0.943 on math subjects (suspected train contamination, see probes).",
+    fields:[{key:"subject",label:"subject（科目）",label_en:"subject",ph:"high school mathematics"},{key:"question",label:"question（题干）",label_en:"question",ph:"What is 2 + 2 * 3 ?"},{key:"A",label:"选项 A",label_en:"Option A",ph:"6"},{key:"B",label:"选项 B",label_en:"Option B",ph:"8"},{key:"C",label:"选项 C",label_en:"Option C",ph:"12"},{key:"D",label:"选项 D",label_en:"Option D",ph:"10"}],
     questions:[{id:"answer",type:"choice",instructions:"Which option correctly answers `question`?",
       options:{A:"（A）",B:"（B）",C:"（C）",D:"（D）"}}],
     patch:(st,q)=>{q.answer.options={A:st.A||"(A)",B:st.B||"(B)",C:st.C||"(C)",D:st.D||"(D)"};
       ["A","B","C","D"].forEach(k=>delete st[k]);}},
 
-  spam: {name:"垃圾短信 · SMS Spam（论文模板）", frozen:true, note:"论文 F1 0.938。Noul 只有一个 0-1 概率，无单独置信度。",
-    fields:[{key:"message",label:"message（短信原文）",ph:"Congratulations! You've won a $1000 gift card. Call now!"}],
+  spam: {name:"垃圾短信 · SMS Spam（论文模板）",name_en:"SMS spam (paper)", frozen:true, note:"论文 F1 0.938。Noul 只有一个 0-1 概率，无单独置信度。",note_en:"Paper F1 0.938. Noul yields a single 0-1 probability, no separate confidence.",
+    fields:[{key:"message",label:"message（短信原文）",label_en:"message (SMS text)",ph:"Congratulations! You've won a $1000 gift card. Call now!"}],
     questions:[{id:"answer",type:"noul",instructions:"Is the SMS `message` spam, such as unsolicited advertising, prize scams or promotional bulk messaging?"}]},
 
-  grounding: {name:"接地检查 · LLM-AggreFact（论文模板）", frozen:true, note:"RAG 场景：claim 是否被 document 支持。论文 balanced accuracy 0.786。",
-    fields:[{key:"document",label:"document（检索到的文档）",ph:"The Eiffel Tower is located in Paris, France."},{key:"claim",label:"claim（要核查的陈述）",ph:"The Eiffel Tower is in Berlin."}],
+  grounding: {name:"接地检查 · LLM-AggreFact（论文模板）",name_en:"Grounding check · LLM-AggreFact (paper)", frozen:true, note:"RAG 场景：claim 是否被 document 支持。论文 balanced accuracy 0.786。",note_en:"RAG setting: is the claim supported by the document? Paper balanced accuracy 0.786.",
+    fields:[{key:"document",label:"document（检索到的文档）",label_en:"document (retrieved text)",ph:"The Eiffel Tower is located in Paris, France."},{key:"claim",label:"claim（要核查的陈述）",label_en:"claim (statement to verify)",ph:"The Eiffel Tower is in Berlin."}],
     questions:[{id:"answer",type:"noul",instructions:"Is every part of `claim` supported by `document`?",
       criteria:{true:"Everything the claim states is supported by the document.",false:"Some part of the claim is unsupported by, or contradicts, the document."}}]},
 
-  stsb: {name:"语义相似度 · STS-B（论文模板）", frozen:true, note:"Score 原语：6 级 rubric，返回概率加权分。论文 Spearman 0.890。",
+  stsb: {name:"语义相似度 · STS-B（论文模板）",name_en:"Semantic similarity · STS-B (paper)", frozen:true, note:"Score 原语：6 级 rubric，返回概率加权分。论文 Spearman 0.890。",note_en:"Score primitive: 6-level rubric, probability-weighted. Paper Spearman 0.890.",
     fields:[{key:"sentence_1",label:"sentence_1",ph:"A girl is styling her hair."},{key:"sentence_2",label:"sentence_2",ph:"A girl is brushing her hair."}],
     questions:[{id:"answer",type:"score",instructions:"How similar in meaning are `sentence_1` and `sentence_2`?",
       levels:["The two sentences are completely dissimilar.","The two sentences are not equivalent, but are on the same topic.","The two sentences are not equivalent, but share some details.","The two sentences are roughly equivalent, but some important information differs or is missing.","The two sentences are mostly equivalent, but some unimportant details differ.","The two sentences are completely equivalent, as they mean the same thing."]}]},
 
-  langid: {name:"语言识别 · Language ID（论文模板）", frozen:true, note:"20 选 1。论文 accuracy 0.996。试试中文！",
+  langid: {name:"语言识别 · Language ID（论文模板）",name_en:"Language ID (paper)", frozen:true, note:"20 选 1。论文 accuracy 0.996。试试中文！",note_en:"20-way. Paper accuracy 0.996. Try Chinese!",
     fields:[{key:"text",label:"text",ph:"今天天气真不错，我们一起去公园散步吧。"}],
     questions:[{id:"answer",type:"choice",instructions:"In which language is `text` written?",
       options:{ar:"Arabic",bg:"Bulgarian",de:"German",el:"Greek",en:"English",es:"Spanish",fr:"French",hi:"Hindi",it:"Italian",ja:"Japanese",nl:"Dutch",pl:"Polish",pt:"Portuguese",ru:"Russian",sw:"Swahili",th:"Thai",tr:"Turkish",ur:"Urdu",vi:"Vietnamese",zh:"Chinese"}}]},
 
-  goemotions: {name:"多标签情绪 · GoEmotions 风格（fan-out 演示）", frozen:false, note:"一个 state × 7 个并行 Noul（论文用全部 28 情绪，这里取子集演示）。论文发现：多标签 Noul 会过报 yes，阈值需上调。",
-    fields:[{key:"comment",label:"comment（评论）",ph:"I can't believe they cancelled the show AGAIN. So angry!!"}],
+  goemotions: {name:"多标签情绪 · GoEmotions 风格（fan-out 演示）",name_en:"Multi-label emotions · GoEmotions-style (fan-out demo)", frozen:false, note:"一个 state × 7 个并行 Noul（论文用全部 28 情绪，这里取子集演示）。论文发现：多标签 Noul 会过报 yes，阈值需上调。",note_en:"One state × 7 parallel Noul questions (the paper uses all 28 emotions; subset here). Paper finding: multi-label Noul over-reports yes; raise the threshold.",
+    fields:[{key:"comment",label:"comment（评论）",label_en:"comment",ph:"I can't believe they cancelled the show AGAIN. So angry!!"}],
     questions:[
       {id:"sadness",type:"noul",instructions:"Does the author of `comment` express sadness?"},
       {id:"joy",type:"noul",instructions:"Does the author of `comment` express joy?"},
@@ -331,9 +472,9 @@ function pageKey(pid){return localStorage.getItem("jev_key_"+pid)||"";}
   }
 })();
 function keyState(p){
-  if(pageKey(p.id))return{ok:true,title:"页面 key 已配置（优先于环境变量）"};
-  if(p.env_key)return{ok:true,title:"环境变量已设置（页面配置可覆盖）"};
-  return{ok:!p.needs_key,title:p.needs_key?"未配置 key：点右上角 🔑 Key 配置，或设环境变量":"该端点无需 key"};
+  if(pageKey(p.id))return{ok:true,title:tr("ks_page")};
+  if(p.env_key)return{ok:true,title:tr("ks_env")};
+  return{ok:!p.needs_key,title:p.needs_key?tr("ks_missing"):tr("ks_nokey")};
 }
 function updateKeyDot(){
   const dot=$("#keydot");let ok=false,txt="";
@@ -342,7 +483,7 @@ function updateKeyDot(){
     const missing=checked.map(r=>PROVIDERS.find(x=>x.id===r.querySelector(".cmpprov").value))
       .filter(p=>p&&p.needs_key&&!keyState(p).ok);
     ok=checked.length>0&&!missing.length;
-    txt=!checked.length?"对比模式：至少勾选一个模型":ok?"对比模式：所有勾选端点都有 key":"缺 key："+missing.map(p=>p.name).join("、")+"（点 🔑 Key 配置）";
+    txt=!checked.length?tr("kd_cmp_empty"):ok?tr("kd_cmp_ok"):tr("kd_miss_pre")+missing.map(p=>p.name).join("、")+tr("kd_miss_suffix");
   }else{
     const p=PROVIDERS.find(x=>x.id===$("#provider").value)||PROVIDERS[0];
     if(p){ok=keyState(p).ok;txt=keyState(p).title;}
@@ -357,8 +498,8 @@ function buildKeyRows(){
     d.innerHTML=`<span class="kd${st.ok?" on":""}" title="${esc(st.title)}"></span>
       <span class="kname" title="${esc(p.name)}">${esc(p.name)}</span>
       <span class="kenv">${p.key_env?esc(p.key_env):""}</span>
-      <input type="password" data-kp="${esc(p.id)}" placeholder="${p.needs_key?(p.env_key?"（环境变量已设置，可覆盖）":"粘贴 key（存本浏览器）"):"（该端点无需 key）"}" style="flex:1;min-width:120px">
-      <button class="xbtn" title="清除该 key">✕</button>`;
+      <input type="password" data-kp="${esc(p.id)}" placeholder="${p.needs_key?(p.env_key?tr("kp_ph_override"):tr("kp_ph_paste")):tr("kp_ph_nokey")}" style="flex:1;min-width:120px">
+      <button class="xbtn" title="${tr("kp_clear_title")}">✕</button>`;
     const inp=d.querySelector("input");
     inp.value=pageKey(p.id);
     inp.addEventListener("change",()=>{
@@ -399,23 +540,29 @@ $("#provider").addEventListener("change",applyProvider);
 
 // ---------- 模板渲染 ----------
 const tplSel=$("#tpl");
-Object.entries(T).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.name;tplSel.appendChild(o);});
+function renderTplSelect(){
+  const cur=tplSel.value;
+  tplSel.innerHTML="";
+  Object.entries(T).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=tName(v);tplSel.appendChild(o);});
+  if(cur)tplSel.value=cur;
+}
+renderTplSelect();
 tplSel.addEventListener("change",()=>loadTemplate(tplSel.value));
 
 function loadTemplate(k){
   const t=T[k];CUR={key:k,t};
-  $("#tplnote").innerHTML=t.frozen?'<span class="badge frozen">论文冻结模板</span> '+esc(t.note):esc(t.note);
+  $("#tplnote").innerHTML=t.frozen?`<span class="badge frozen">${tr("badge_frozen")}</span> ${esc(tNote(t))}`:esc(tNote(t));
   // state 字段
   const sf=$("#statefields");sf.innerHTML="";
   if(t.fields){
     t.fields.forEach(f=>{
       const d=document.createElement("div");d.className="frow";
-      d.innerHTML=`<label>${esc(f.label)}</label><textarea data-sk="${esc(f.key)}" placeholder="${esc(f.ph||"")}"></textarea>`;
+      d.innerHTML=`<label>${esc(fLabel(f))}</label><textarea data-sk="${esc(f.key)}" placeholder="${esc(fPh(f)||"")}"></textarea>`;
       sf.appendChild(d);
     });
   }else{
     const d=document.createElement("div");d.className="frow";
-    d.innerHTML=`<label>state（JSON，可引用字段名用反引号）</label><textarea id="statejson" style="min-height:110px">${esc(JSON.stringify(t.jsonState,null,2))}</textarea>`;
+    d.innerHTML=`<label>${tr("statejson_label")}</label><textarea id="statejson" style="min-height:110px">${esc(JSON.stringify(t.jsonState,null,2))}</textarea>`;
     sf.appendChild(d);
   }
   // 问题
@@ -425,21 +572,21 @@ function loadTemplate(k){
 function qcard(q){
   const d=document.createElement("div");d.className="qcard";
   const crit=q.type==="choice"
-    ? `<div class="optrows">${Object.entries(q.options||{}).map(([k,v])=>optrow(k,v)).join("")}</div><button class="addbtn addopt">＋ 选项</button>`
+    ? `<div class="optrows">${Object.entries(q.options||{}).map(([k,v])=>optrow(k,v)).join("")}</div><button class="addbtn addopt">${tr("addopt")}</button>`
     : q.type==="score"
-    ? `<div class="frow"><label>等级（每行一级，2-10 级，描述具体情境）</label><textarea class="lv">${esc((q.levels||[]).join("\n"))}</textarea></div>`
+    ? `<div class="frow"><label>${tr("lv_label")}</label><textarea class="lv">${esc((q.levels||[]).join("\n"))}</textarea></div>`
     : (q.criteria&&q.criteria.true)
-    ? `<div class="frow"><label>true 判据（可选）</label><input class="crt" data-w="true" value="${esc(q.criteria.true)}" style="width:100%"></div>
-       <div class="frow"><label>false 判据（可选）</label><input class="crt" data-w="false" value="${esc(q.criteria.false||"")}" style="width:100%"></div>`
-    : `<div class="hint">Noul 无需选项；可选填 true/false 判据。<div class="frow" style="margin-top:6px"><input class="crt" data-w="true" placeholder="true 判据（可选）" style="width:100%"></div><div class="frow"><input class="crt" data-w="false" placeholder="false 判据（可选）" style="width:100%"></div></div>`;
+    ? `<div class="frow"><label>${tr("crt_true_label")}</label><input class="crt" data-w="true" value="${esc(q.criteria.true)}" style="width:100%"></div>
+       <div class="frow"><label>${tr("crt_false_label")}</label><input class="crt" data-w="false" value="${esc(q.criteria.false||"")}" style="width:100%"></div>`
+    : `<div class="hint">${tr("noul_hint")}<div class="frow" style="margin-top:6px"><input class="crt" data-w="true" placeholder="${tr("crt_true_label")}" style="width:100%"></div><div class="frow"><input class="crt" data-w="false" placeholder="${tr("crt_false_label")}" style="width:100%"></div></div>`;
   d.innerHTML=`
     <div class="qhead">
       <select class="qtype"><option value="choice"${q.type==="choice"?" selected":""}>Choice</option><option value="noul"${q.type==="noul"?" selected":""}>Noul</option><option value="score"${q.type==="score"?" selected":""}>Score</option></select>
       <input class="qid" value="${esc(q.id)}">
       <span class="badge">id</span>
-      <button class="xbtn" title="删除此问题">×</button>
+      <button class="xbtn" title="${tr("qdel_title")}">×</button>
     </div>
-    <div class="frow"><textarea class="qinstr" placeholder="instructions：完整问题，用反引号引用 state 字段，如 \`text\`">${esc(q.instructions)}</textarea></div>
+    <div class="frow"><textarea class="qinstr" placeholder="${tr("qinstr_ph")}">${esc(q.instructions)}</textarea></div>
     <div class="qcrit">${crit}</div>`;
   d.querySelector(".xbtn").onclick=()=>d.remove();
   d.querySelector(".qtype").onchange=()=>{ // 换类型重建 criteria 区
@@ -457,7 +604,7 @@ function qcard(q){
   function bindX(r){r.querySelector(".xbtn").onclick=()=>r.remove();}
   return d;
 }
-function optrow(k,v){return `<div class="optrow"><input class="key" value="${esc(k)}"><input class="desc" value="${esc(v===null||v===undefined?"":v)}" placeholder="描述（可空）"><button class="xbtn">×</button></div>`;}
+function optrow(k,v){return `<div class="optrow"><input class="key" value="${esc(k)}"><input class="desc" value="${esc(v===null||v===undefined?"":v)}" placeholder="${tr("optdesc_ph")}"><button class="xbtn">×</button></div>`;}
 $("#addq").onclick=()=>$("#questions").appendChild(qcard({id:"q"+($("#questions").children.length+1),type:"noul",instructions:""}));
 
 // ---------- 题库选题 ----------
@@ -473,25 +620,24 @@ async function loadTasks(){
     if(!window.__autoPicked){window.__autoPicked=true;bankPick(false);} // 打开页面即自动出第一批题，全程零点击
     return true;
   }catch(e){
-    sel.innerHTML="<option value=''>（任务列表加载失败）</option>";
-    $("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">任务列表加载失败: ${esc(String(e))} —— server.py 在跑吗？<button class="ghost" onclick="loadTasks()">重试</button></div>`;
+    sel.innerHTML=`<option value=''>${tr("tasks_fail_option")}</option>`;
+    $("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">${tr("tasks_fail_pre")}${esc(String(e))}${tr("tasks_fail_suf")}<button class="ghost" onclick="loadTasks()">${tr("retry")}</button></div>`;
     return false;
   }
 }
 window.loadTasks=loadTasks;
 loadTasks();
-$("#pgver").textContent="页面版本 2026-10-16 18:22";
-window.addEventListener("error",e=>{const b=$("#errbox");b.textContent="页面脚本错误: "+e.message+"（"+(e.filename||"")+":"+e.lineno+"）";b.style.display="block";});
-window.addEventListener("unhandledrejection",e=>{const b=$("#errbox");b.textContent="异步请求错误: "+((e.reason&&e.reason.message)||e.reason);b.style.display="block";});
+window.addEventListener("error",e=>{const b=$("#errbox");b.textContent=tr("err_script")+e.message+"（"+(e.filename||"")+":"+e.lineno+"）";b.style.display="block";});
+window.addEventListener("unhandledrejection",e=>{const b=$("#errbox");b.textContent=tr("err_async")+((e.reason&&e.reason.message)||e.reason);b.style.display="block";});
 async function bankPick(next){
   console.log("[取题] clicked, task =", $("#banktask").value||"(空)");
   const task=$("#banktask").value;
   if(!task){
-    $("#bankitems").innerHTML='<div class="hint" style="color:var(--err)">任务列表还是空的，正在重新加载…</div>';
+    $("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">${tr("bank_empty_retry")}</div>`;
     if(await loadTasks())bankPick(next);
     return;
   }
-  const btn=$("#bankget");if(btn){btn.disabled=true;btn.textContent="加载中…";}
+  const btn=$("#bankget");if(btn){btn.disabled=true;btn.textContent=tr("loading");}
   BANK.offset=next?BANK.offset+5:0;BANK.task=task;BANK.gold=null;
   try{
     const r=await fetch("/api/pick",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({task,offset:BANK.offset,n:5})});
@@ -499,21 +645,21 @@ async function bankPick(next){
     const box=$("#bankitems");
     if(!j.ok){box.innerHTML=`<div class="hint" style="color:var(--err)">${esc(j.error)}</div>`;return;}
     box.innerHTML="";
-    if(!j.items.length){box.innerHTML='<div class="hint">没有更多了（已到取题上限）。</div>';return;}
+    if(!j.items.length){box.innerHTML=`<div class="hint">${tr("bank_no_more")}</div>`;return;}
     window.BANK_CUR=j.items;
     j.items.forEach((it,i)=>{
       const prev=JSON.stringify(it.state);
       const vals=Object.values(it.state||{}).map(v=>typeof v==="string"?v:JSON.stringify(v)).join(" · ");
       const txt=vals||prev;
       const d=document.createElement("div");d.className="bankitem";
-      d.innerHTML=`<span class="bnum">${j.offset+i+1}</span><span class="btxt" title="${esc(prev)}">${esc(txt.length>110?txt.slice(0,110)+"…":txt)}</span><button class="ghost bload" onclick="event.stopPropagation();loadBankIdx(${i})">载入</button>`;
+      d.innerHTML=`<span class="bnum">${j.offset+i+1}</span><span class="btxt" title="${esc(prev)}">${esc(txt.length>110?txt.slice(0,110)+"…":txt)}</span><button class="ghost bload" onclick="event.stopPropagation();loadBankIdx(${i})">${tr("load")}</button>`;
       d.onclick=()=>loadBankItem(it);
       box.appendChild(d);
     });
     $("#banknext").style.display=j.more?"":"none";
   }catch(e){
-    $("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">取题失败: ${esc(String(e))}</div>`;
-  }finally{if(btn){btn.disabled=false;btn.textContent="取题";}}
+    $("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">${tr("pick_fail")}${esc(String(e))}</div>`;
+  }finally{if(btn){btn.disabled=false;btn.textContent=tr("bankget");}}
 }
 window.bankPick=bankPick; // 内联 onclick 在点击时才解析，绕开一切加载期绑定失败
 window.loadBankIdx=i=>loadBankItem((window.BANK_CUR||[])[i]);
@@ -549,14 +695,14 @@ window.bankDelete=async function(){
   const v=$("#banktask").value;
   if(v.indexOf("bank:")!==0)return;
   const name=v.slice(5);
-  if(!confirm(`删除题库「${name}」？文件会一并删除，不可恢复。`))return;
+  if(!confirm(tr("bank_del_confirm",{b:name})))return;
   try{
     const r=await fetch("/api/banks/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bank:name})});
     const j=await r.json();
     if(!j.ok)throw new Error(j.error||("HTTP "+r.status));
     await loadTasks();
-    $("#bankitems").innerHTML='<div class="hint">题库已删除。</div>';
-  }catch(e){$("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">删除失败: ${esc(String(e))}</div>`;}
+    $("#bankitems").innerHTML=`<div class="hint">${tr("bank_deleted")}</div>`;
+  }catch(e){$("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">${tr("del_fail")}${esc(String(e))}</div>`;}
 };
 $("#bankfile").onchange=async function(){
   const f=this.files[0];if(!f)return;
@@ -565,9 +711,9 @@ $("#bankfile").onchange=async function(){
     const r=await fetch("/api/banks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
     const j=await r.json();
     if(!j.ok)throw new Error(j.error||("HTTP "+r.status));
-    $("#bankitems").innerHTML=`<div class="hint" style="color:var(--ok)">题库「${esc(j.bank)}」已保存（${j.count} 题）。</div>`;
+    $("#bankitems").innerHTML=`<div class="hint" style="color:var(--ok)">${tr("bank_saved",{b:esc(j.bank),n:j.count})}</div>`;
     await loadTasks();
-  }catch(e){$("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">上传失败: ${esc(String(e.message||e))}</div>`;}
+  }catch(e){$("#bankitems").innerHTML=`<div class="hint" style="color:var(--err)">${tr("upload_fail")}${esc(String(e.message||e))}</div>`;}
   this.value="";
 };
 // ---------- 编辑器存题 ----------
@@ -576,21 +722,21 @@ $("#savebank").onclick=function(){
   if(f){f.remove();return;}
   f=document.createElement("div");f.id="saveform";
   f.style.cssText="border:1px dashed var(--line);border-radius:8px;padding:10px;margin-bottom:10px";
-  f.innerHTML=`<div class="frow"><label>存到题库（不存在会新建；字母数字-_）</label><input id="svbank" value="my-bank" style="width:100%"></div>
-    <div class="frow"><label>标准答案 gold（可选 JSON，如 {"answer":"positive"}）</label><input id="svgold" placeholder='{"answer":"..."}' style="width:100%"></div>
-    <div style="display:flex;gap:8px;align-items:center"><button class="ghost" id="svgo">保存</button><span class="hint" id="svmsg"></span></div>`;
+  f.innerHTML=`<div class="frow"><label>${tr("sv_label")}</label><input id="svbank" value="my-bank" style="width:100%"></div>
+    <div class="frow"><label>${tr("sv_gold_label")}</label><input id="svgold" placeholder='{"answer":"..."}' style="width:100%"></div>
+    <div style="display:flex;gap:8px;align-items:center"><button class="ghost" id="svgo">${tr("sv_save")}</button><span class="hint" id="svmsg"></span></div>`;
   $("#questions").prepend(f);
   $("#svgo").onclick=async function(){
     const msg=$("#svmsg");msg.textContent="";msg.style.color="";
     try{
       const payload=collect(); // 复用发送前的校验
       let gold={};const g=$("#svgold").value.trim();
-      if(g){gold=JSON.parse(g);if(typeof gold!=="object"||Array.isArray(gold)||gold===null)throw new Error("gold 需是 JSON 对象");}
+      if(g){gold=JSON.parse(g);if(typeof gold!=="object"||Array.isArray(gold)||gold===null)throw new Error(tr("sv_need_obj"));}
       const r=await fetch("/api/banks/add_item",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({bank:$("#svbank").value.trim()||"my-bank",state:payload.state,questions:payload.questions,gold})});
       const j=await r.json();
       if(!j.ok)throw new Error(j.error||("HTTP "+r.status));
-      msg.style.color="var(--ok)";msg.textContent=`✓ 已存入「${j.bank}」（共 ${j.count} 题）`;
+      msg.style.color="var(--ok)";msg.textContent=tr("sv_ok",{b:j.bank,n:j.count});
       setTimeout(()=>f.remove(),1500);
       loadTasks();
     }catch(e){msg.style.color="var(--err)";msg.textContent=String(e.message||e);}
@@ -616,33 +762,33 @@ function collect(){
   if(t.fields){
     document.querySelectorAll("#statefields textarea[data-sk]").forEach(el=>{state[el.dataset.sk]=el.value;});
     let empty=Object.values(state).every(v=>!v.trim());
-    if(empty)throw new Error("state 字段都是空的，填点内容。");
+    if(empty)throw new Error(tr("collect_empty_state"));
   }else{
     try{Object.assign(state,JSON.parse($("#statejson").value));}
-    catch(e){throw new Error("state JSON 不合法："+e.message);}
+    catch(e){throw new Error(tr("collect_bad_json")+e.message);}
   }
   const qs=[];
   document.querySelectorAll("#questions .qcard").forEach((d,i)=>{
     const type=d.querySelector(".qtype").value;
     const q={id:d.querySelector(".qid").value.trim()||("q"+(i+1)),type,instructions:d.querySelector(".qinstr").value.trim()};
-    if(!q.instructions)throw new Error(`问题 ${q.id}：instructions 为空。`);
+    if(!q.instructions)throw new Error(tr("collect_no_instr",{id:q.id}));
     if(type==="choice"){
       q.options={};
       d.querySelectorAll(".optrows .optrow").forEach(r=>{
         const k=r.querySelector(".key").value.trim();if(!k)return;
         q.options[k]=r.querySelector(".desc").value.trim()||null;
       });
-      if(Object.keys(q.options).length<2)throw new Error(`问题 ${q.id}：choice 至少 2 个选项。`);
+      if(Object.keys(q.options).length<2)throw new Error(tr("collect_need_opts",{id:q.id}));
     }else if(type==="score"){
       q.levels=d.querySelector(".lv").value.split("\n").map(x=>x.trim()).filter(Boolean);
-      if(q.levels.length<2)throw new Error(`问题 ${q.id}：score 至少 2 个等级。`);
+      if(q.levels.length<2)throw new Error(tr("collect_need_levels",{id:q.id}));
     }else{
       const c={};d.querySelectorAll(".crt").forEach(el=>{if(el.value.trim())c[el.dataset.w]=el.value.trim();});
       if(c.true||c.false)q.criteria=c;
     }
     qs.push(q);
   });
-  if(!qs.length)throw new Error("至少要有一个问题。");
+  if(!qs.length)throw new Error(tr("collect_no_q"));
   if(t.patch)t.patch(state,qs[0]); // 模板后处理（MMLU：字段并入选项）
   return {state,questions:qs};
 }
@@ -654,15 +800,15 @@ async function send(){
   catch(e){err.textContent=e.message;err.style.display="block";return;}
   if(CMP_ON){await sendCompare(payload);return;}
   const req={key:pageKey($("#provider").value||"typesafe"),provider:$("#provider").value||"typesafe",model:$("#model").value.trim()||"jev-latest",...payload};
-  const btn=$("#send");btn.disabled=true;btn.textContent="请求中…";
+  const btn=$("#send");btn.disabled=true;btn.innerHTML=`<span>${tr("sending")}</span>`;
   try{
     const r=await fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(req)});
     const j=await r.json();
     if(!j.ok){err.textContent=j.error||("HTTP "+r.status);err.style.display="block";return;}
     renderResult(j,req);
   }catch(e){
-    err.textContent="无法连接本地服务（server.py 还在跑吗？）："+e;err.style.display="block";
-  }finally{btn.disabled=false;btn.innerHTML="发送请求<kbd>Ctrl ↵</kbd>";}
+    err.textContent=tr("conn_fail")+e;err.style.display="block";
+  }finally{btn.disabled=false;btn.innerHTML=`<span>${tr("send_text")}</span><kbd>Ctrl ↵</kbd>`;}
 }
 $("#send").onclick=send;
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")send();});
@@ -683,10 +829,10 @@ function setCmp(on){
 $("#cmpbtn").onclick=()=>setCmp(!CMP_ON);
 function cmpRow(prov){
   const d=document.createElement("div");d.className="cmprow";
-  d.innerHTML=`<input type="checkbox" class="cmpon" checked title="勾选=参与本次对比">
+  d.innerHTML=`<input type="checkbox" class="cmpon" checked title="${tr("cmp_on_title")}">
     <select class="cmpprov"></select>
-    <input class="cmpmodel" title="模型名（留空=该 provider 的默认）">
-    <button class="xbtn" title="删除该行">✕</button>`;
+    <input class="cmpmodel" title="${tr("cmp_model_title")}">
+    <button class="xbtn" title="${tr("cmp_del_title")}">✕</button>`;
   const sel=d.querySelector(".cmpprov"),model=d.querySelector(".cmpmodel");
   PROVIDERS.forEach(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=p.name;sel.appendChild(o);});
   sel.value=prov.id;model.value=prov.model_default||"";
@@ -703,8 +849,8 @@ async function sendCompare(payload){
   const err=$("#errbox");
   const rows=[...document.querySelectorAll("#cmprows .cmprow")].filter(r=>r.querySelector(".cmpon").checked)
     .map(r=>({provider:r.querySelector(".cmpprov").value,model:r.querySelector(".cmpmodel").value.trim()}));
-  if(!rows.length){err.textContent="对比模式：至少勾选一个模型。";err.style.display="block";return;}
-  const btn=$("#send");btn.disabled=true;btn.textContent=`请求中…（${rows.length} 个模型）`;
+  if(!rows.length){err.textContent=tr("cmp_need_one");err.style.display="block";return;}
+  const btn=$("#send");btn.disabled=true;btn.innerHTML=`<span>${tr("sending_cmp",{n:rows.length})}</span>`;
   try{
     const settled=await Promise.allSettled(rows.map(w=>
       fetch("/api/ask",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -712,21 +858,21 @@ async function sendCompare(payload){
         .then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.error||("HTTP "+r.status));return j;})));
     renderCompare(rows,settled,payload);
   }catch(e){
-    err.textContent="无法连接本地服务（server.py 还在跑吗？）："+e;err.style.display="block";
-  }finally{btn.disabled=false;btn.innerHTML="发送请求<kbd>Ctrl ↵</kbd>";}
+    err.textContent=tr("conn_fail")+e;err.style.display="block";
+  }finally{btn.disabled=false;btn.innerHTML=`<span>${tr("send_text")}</span><kbd>Ctrl ↵</kbd>`;}
 }
 
-function renderCompare(rows,settled,req){
+function renderCompare(rows,settled,req,count=true){
   const ph=$("#results .placeholder");if(ph)ph.remove();
   const card=document.createElement("div");card.className="rescard";
-  let html=`<div class="meta"><span>对比 ${rows.length} 个模型</span><span>${new Date().toLocaleTimeString()}</span></div>`;
+  let html=`<div class="meta"><span>${tr("cmp_meta",{n:rows.length})}</span><span>${new Date().toLocaleTimeString()}</span></div>`;
   html+=goldHTML();
   html+=`<div style="overflow-x:auto"><div class="cmpgrid" style="grid-template-columns:150px repeat(${rows.length},minmax(215px,1fr))">`;
-  html+=`<div class="cmpcell cmphead">问题</div>`;
+  html+=`<div class="cmpcell cmphead">${tr("cmp_q")}</div>`;
   rows.forEach((w,i)=>{
     const s=settled[i],p=PROVIDERS.find(x=>x.id===w.provider);
     if(s.status==="fulfilled"){
-      bumpStats(s.value);
+      if(count)bumpStats(s.value);
       html+=`<div class="cmpcell cmphead"><b>${esc(p?p.name:w.provider)}</b><br><span style="font-family:Consolas,monospace">${esc(w.model||s.value.model)}</span><br><span class="hint">${s.value.latency_ms} ms · ${(s.value.usage&&s.value.usage.input_tokens)||0} input tok · ≈ $${(s.value.est_cost_usd||0).toFixed(6)}</span></div>`;
     }else{
       const msg=String((s.reason&&s.reason.message)||s.reason);
@@ -745,27 +891,32 @@ function renderCompare(rows,settled,req){
   rows.forEach((w,i)=>{
     const s=settled[i];
     const raw=s.status==="fulfilled"?s.value:{error:String((s.reason&&s.reason.message)||s.reason)};
-    html+=`<details style="margin-top:8px"><summary class="hint">${esc(w.provider)} · ${esc(w.model)} 原始响应</summary><pre>${esc(JSON.stringify(raw,null,1))}</pre></details>`;
+    html+=`<details style="margin-top:8px"><summary class="hint">${esc(w.provider)} · ${esc(w.model)}${tr("raw_resp")}</summary><pre>${esc(JSON.stringify(raw,null,1))}</pre></details>`;
   });
   card.innerHTML=html;
   $("#results").prepend(card);
+  CARDS.push({type:"cmp",rows,settled,req});
 }
 
 // ---------- 结果渲染 ----------
 let STATS={n:0,tok:0,cost:0};
+const CARDS=[]; // 已渲染结果卡快照，切语言时按当前语言重绘
+function updateStatsLine(){
+  $("#stats").textContent=tr("stats_line",{n:STATS.n,t:STATS.tok.toLocaleString(),c:STATS.cost.toFixed(6)});
+}
 function bumpStats(j){
   STATS.n++;STATS.tok+=(j.usage&&j.usage.input_tokens)||0;STATS.cost+=(j.est_cost_usd||0);
-  $("#stats").textContent=`${STATS.n} 次请求 · ${STATS.tok.toLocaleString()} tokens · $${STATS.cost.toFixed(6)}`;
+  updateStatsLine();
 }
 function goldHTML(){
   if(!(BANK.gold&&BANK.goldTask))return"";
   const gs=Object.entries(BANK.gold).map(([k,v])=>typeof v==="boolean"?(v?k+" ✓":""):(k+" = "+v)).filter(Boolean).join(" · ");
-  return`<div class="gold">标准答案（${esc(BANK.goldTask)}）: <b>${esc(gs||"—")}</b> <span class="hint">— 若你在发送前改过题目，此答案可能不再适用</span></div>`;
+  return`<div class="gold">${tr("gold_line",{t:esc(BANK.goldTask)})}<b>${esc(gs||"—")}</b> <span class="hint">${tr("gold_note")}</span></div>`;
 }
 function answerHTML(qid,a){ // 单题答案渲染（单发结果卡与对比网格共用）
   let html="";
   if("choice" in a){
-    html+=`<div class="ans">${esc(a.choice)} <small>（问题 ${esc(qid)}）</small></div>`;
+    html+=`<div class="ans">${esc(a.choice)} <small>${tr("ans_q",{id:esc(qid)})}</small></div>`;
     const probs=Object.entries(a.probabilities||{}).sort((x,y)=>y[1]-x[1]);
     const top=probs[0]&&probs[0][0];
     for(const[k,v]of probs){
@@ -774,48 +925,117 @@ function answerHTML(qid,a){ // 单题答案渲染（单发结果卡与对比网�
     html+=conf(a.confidence);
   }else if("noul" in a){
     const v=a.noul;
-    const reading=v>0.65?"倾向 是":v<0.35?"倾向 否":"≈0.5：五五开（注意：不是“中等程度”）";
-    html+=`<div class="ans">P(yes) = ${v.toFixed(2)} <small>（问题 ${esc(qid)} · ${reading}）</small></div>
+    const reading=v>0.65?tr("noul_yes"):v<0.35?tr("noul_no"):tr("noul_half");
+    html+=`<div class="ans">P(yes) = ${v.toFixed(2)} <small>${tr("ans_q",{id:esc(qid)})} · ${reading}</small></div>
       <div class="noulbar"><div class="fill" style="width:${v*100}%"></div><div class="half"></div><div class="knob" style="left:${v*100}%"></div></div>
-      <div class="hint">0 ─ 0.5 ─ 1（虚线=0.5 阈值）</div>`;
+      <div class="hint">${tr("noul_scale")}</div>`;
   }else if("score" in a){
     const legend=a.legend||(a.probabilities?Object.keys(a.probabilities):[]);
     const n=Math.max(legend.length-1,1),v=a.score;
-    html+=`<div class="ans">${(+v).toFixed(2)} <small>/ ${n}（问题 ${esc(qid)}）</small></div><div class="scale"><div class="rail"></div><div class="knob" style="left:${Math.min(Math.max(v/n,0),1)*100}%"></div>`;
+    html+=`<div class="ans">${(+v).toFixed(2)} <small>/ ${n} ${tr("ans_q",{id:esc(qid)})}</small></div><div class="scale"><div class="rail"></div><div class="knob" style="left:${Math.min(Math.max(v/n,0),1)*100}%"></div>`;
     legend.forEach((_,i)=>html+=`<span class="lv" style="left:${(i/n)*100}%">${i}</span>`);
     html+=`</div>`;
     const probs=Object.entries(a.probabilities||{});
     probs.forEach(([k,p])=>{html+=`<div class="pbar"><span style="font-size:11px;color:var(--dim)" title="${esc(legend[k]||"")}">L${esc(k)}</span><div class="track"><div class="fill" style="width:${Math.max(1,p*100)}%"></div></div><span class="pct">${(p*100).toFixed(1)}%</span></div>`;});
     html+=conf(a.confidence);
-    html+=`<details style="margin-top:6px"><summary class="hint">等级全文</summary><pre>${esc((legend||[]).map((l,i)=>`L${i}: ${l}`).join("\n"))}</pre></details>`;
+    html+=`<details style="margin-top:6px"><summary class="hint">${tr("levels_full")}</summary><pre>${esc((legend||[]).map((l,i)=>`L${i}: ${l}`).join("\n"))}</pre></details>`;
   }else if(a.type==="refusal"){
-    html+=`<div class="ans">⚠ 该问题被模型拒绝回答 <small>（问题 ${esc(qid)}）</small></div><pre>${esc(JSON.stringify(a,null,1))}</pre>`;
+    html+=`<div class="ans">${tr("refusal")} <small>${tr("ans_q",{id:esc(qid)})}</small></div><pre>${esc(JSON.stringify(a,null,1))}</pre>`;
   }else{
     html+=`<pre>${esc(JSON.stringify(a,null,1))}</pre>`;
   }
   return html;
 }
-function renderResult(j,req){
-  bumpStats(j);
+function renderResult(j,req,count=true){
+  if(count)bumpStats(j);
   const ph=$("#results .placeholder");if(ph)ph.remove();
   const card=document.createElement("div");card.className="rescard";
   const qs=req.questions.map(q=>q.id).join(", ");
-  let html=`<div class="meta"><span>${esc(j.provider||"typesafe")}</span><span>模型 <b>${esc(j.model)}</b></span><span>${j.latency_ms} ms</span><span>${(j.usage&&j.usage.input_tokens)||0} input tok</span><span>≈ $${(j.est_cost_usd||0).toFixed(6)}</span><span>${new Date().toLocaleTimeString()}</span></div>`;
+  let html=`<div class="meta"><span>${esc(j.provider||"typesafe")}</span><span>${tr("meta_model")}<b>${esc(j.model)}</b></span><span>${j.latency_ms} ms</span><span>${(j.usage&&j.usage.input_tokens)||0} input tok</span><span>≈ $${(j.est_cost_usd||0).toFixed(6)}</span><span>${new Date().toLocaleTimeString()}</span></div>`;
   html+=goldHTML();
   for(const qid of Object.keys(j.answers)){
     html+=`<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px">${answerHTML(qid,j.answers[qid]||{})}</div>`;
   }
-  html+=`<details style="margin-top:12px"><summary class="hint">本次请求 JSON（问题：${esc(qs)}）</summary><pre>${esc(JSON.stringify({state:req.state,questions:req.questions},null,1))}</pre></details>`;
-  html+=`<details style="margin-top:4px"><summary class="hint">原始响应 JSON</summary><pre>${esc(JSON.stringify(j,null,1))}</pre></details>`;
+  html+=`<details style="margin-top:12px"><summary class="hint">${tr("req_json",{q:esc(qs)})}</summary><pre>${esc(JSON.stringify({state:req.state,questions:req.questions},null,1))}</pre></details>`;
+  html+=`<details style="margin-top:4px"><summary class="hint">${tr("raw_json")}</summary><pre>${esc(JSON.stringify(j,null,1))}</pre></details>`;
   card.innerHTML=html;
   $("#results").prepend(card);
+  CARDS.push({type:"single",j,req});
 }
 function conf(c){
   if(c===undefined||c===null)return"";
-  return`<div class="conf" title="分布集中度，非正确性">置信度 <div class="track"><div class="fill" style="width:${c*100}%"></div></div> <b>${(+c).toFixed(2)}</b></div>`;
+  return`<div class="conf" title="${tr("conf_title")}"><span class="lab">${tr("conf_label")}</span><div class="track"><div class="fill" style="width:${c*100}%"></div></div> <b>${(+c).toFixed(2)}</b></div>`;
 }
 
+// ---------- 中/EN 切换：右上角分段控件 ----------
+function relabelStateFields(){ // 语言切换后，就地重写编辑器标签/占位符，不丢用户已填内容
+  if(!CUR)return;
+  if(CUR.t.fields){
+    CUR.t.fields.forEach(f=>{
+      const el=document.querySelector(`#statefields textarea[data-sk="${CSS.escape(f.key)}"]`);
+      if(!el)return;
+      const lab=el.closest(".frow").querySelector("label");
+      if(lab)lab.textContent=fLabel(f);
+      el.placeholder=fPh(f)||"";
+    });
+  }else{
+    const el=document.getElementById("statejson");
+    if(el){const lab=el.closest(".frow").querySelector("label");if(lab)lab.textContent=tr("statejson_label");}
+  }
+}
+function rebuildQcards(){ // 从 DOM 读回当前问题定义，用新语言重建编辑卡
+  document.querySelectorAll("#questions .qcard").forEach(d=>{
+    const type=d.querySelector(".qtype").value;
+    const q={id:d.querySelector(".qid").value,type,instructions:d.querySelector(".qinstr").value};
+    if(type==="choice"){
+      q.options={};
+      d.querySelectorAll(".optrows .optrow").forEach(r=>{
+        const k=r.querySelector(".key").value.trim();if(!k)return;
+        q.options[k]=r.querySelector(".desc").value.trim()||null;
+      });
+    }else if(type==="score"){
+      q.levels=d.querySelector(".lv").value.split("\n").map(x=>x.trim()).filter(Boolean);
+    }else{
+      const c={};d.querySelectorAll(".crt").forEach(el=>{if(el.value.trim())c[el.dataset.w]=el.value.trim();});
+      if(c.true||c.false)q.criteria=c;
+    }
+    d.replaceWith(qcard(q));
+  });
+}
+function rerenderCards(){ // 切语言后按当前语言重绘历史结果卡（不重复计数）
+  document.querySelectorAll("#results .rescard").forEach(el=>el.remove());
+  if(!CARDS.length){$("#results").appendChild(PH_CLONE.cloneNode(true));return;}
+  CARDS.forEach(c=>{
+    if(c.type==="cmp")renderCompare(c.rows,c.settled,c.req,false);
+    else renderResult(c.j,c.req,false);
+  });
+}
+function setLang(lg){
+  if(lg===LANG)return;
+  LANG=lg;localStorage.setItem("jev_lang",lg);
+  document.documentElement.lang=lg==="zh"?"zh-CN":"en";
+  $("#lang-zh").classList.toggle("on",lg==="zh");
+  $("#lang-en").classList.toggle("on",lg==="en");
+  applyI18n();
+  renderTplSelect();
+  if(CUR)$("#tplnote").innerHTML=CUR.t.frozen?`<span class="badge frozen">${tr("badge_frozen")}</span> ${esc(tNote(CUR.t))}`:esc(tNote(CUR.t));
+  relabelStateFields();
+  rebuildQcards();
+  if(document.querySelector("#saveform"))$("#saveform").remove(); // 存题库表单是临时态，直接收起
+  buildKeyRows();
+  updateKeyDot();
+  updateStatsLine();
+  rerenderCards();
+}
+$("#lang-zh").onclick=()=>setLang("zh");
+$("#lang-en").onclick=()=>setLang("en");
+document.documentElement.lang=LANG==="zh"?"zh-CN":"en";
+$("#lang-zh").classList.toggle("on",LANG==="zh");
+$("#lang-en").classList.toggle("on",LANG==="en");
+
 loadTemplate("sentiment");
+applyI18n();
+updateStatsLine();
 console.log("[页面] JS 全部加载完成，取题/发送按钮就绪");
 </script>
 </body>
